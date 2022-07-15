@@ -131,3 +131,7 @@ dmypy.json
 
 labs/.ipynb_checkpoints/
 labs/datasets/
+
+
+# Bot token file
+config.json

@@ -131,6 +131,7 @@ dmypy.json
 
 labs/.ipynb_checkpoints/
 labs/datasets/
+labs/jsonl/test.jsonl
 
 
 # Bot token file

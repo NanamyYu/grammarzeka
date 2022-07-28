@@ -1,5 +1,4 @@
 import telebot
-import json
 from telebot import types
 import random
 import os

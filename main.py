@@ -2,7 +2,6 @@ import telebot
 import json
 from telebot import types
 import random
-import json
 
 with open('config.json', 'r') as f:
     data = json.load(f)

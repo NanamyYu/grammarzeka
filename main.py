@@ -2,10 +2,9 @@ import telebot
 import json
 from telebot import types
 import random
+import os
 
-with open('config.json', 'r') as f:
-    data = json.load(f)
-    token = data['token']
+token = os.getenv("GRAMMARZEKA_TOKEN")
 bot = telebot.TeleBot(token)
 
 questions = ["В новогоднюю ночь будет много ____.", "____ нужно делать обследование всего организма.", "На избирательном участке нам выдали специальные _____, которые нужно было заполнить и опустить в тумбу."]

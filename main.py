@@ -74,7 +74,7 @@ def callback_inline(call):
                 logger.info("Failed question: " + str(num + 1))
                 bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="*Неверно.* \nПравильный ответ: *" + right_answer + "*, а полностью предложение звучит так: \n_" + str(questions[num]).replace("____", right_answer) + "_\nПродолжим?", reply_markup=next_q, parse_mode='Markdown')
         elif call.data[:4] == "skip":
-            bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=call.message.text, parse_mode='Markdown')
+            bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=call.message.text)
             if len(call.data) > 4:
                 question(call, int(call.data[4]))
             else:

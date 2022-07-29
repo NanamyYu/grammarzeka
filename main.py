@@ -69,10 +69,10 @@ def callback_inline(call):
             right_answer = str(answers[num][answersmask[num]])
             if call.data[0] == "T":
                 logger.info("Passed question: " + str(num + 1))
-                bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="*Правильно!* \nПолностью предложение звучит так: \n_" + str(questions[num]).replace("____", right_answer) + "_\nПродолжим?", reply_markup=next_q, parse_mode='Markdown')
+                bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="*Правильно!* \n\nПолностью предложение звучит так: \n\n_" + str(questions[num]).replace("____", right_answer) + "_\n\nПродолжим?", reply_markup=next_q, parse_mode='Markdown')
             else:
                 logger.info("Failed question: " + str(num + 1))
-                bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="*Неверно.* \nПравильный ответ: *" + right_answer + "*, а полностью предложение звучит так: \n_" + str(questions[num]).replace("____", right_answer) + "_\nПродолжим?", reply_markup=next_q, parse_mode='Markdown')
+                bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="*Неверно.* \n\nПравильный ответ: *" + right_answer + "*, а полностью предложение звучит так: \n\n_" + str(questions[num]).replace("____", right_answer) + "_\n\nПродолжим?", reply_markup=next_q, parse_mode='Markdown')
         elif call.data[:4] == "skip":
             bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=call.message.text)
             if len(call.data) > 4:

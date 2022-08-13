@@ -12,7 +12,7 @@ user_id = [int(os.getenv("user_id"))]
 # Base logger
 logger = logging.getLogger('grammarzeka')
 logger.setLevel(logging.INFO)
-logging.basicConfig(filename = "mylog.log", format = "%(asctime)s - %(levelname)s - %(funcName)s: %(lineno)d - %(message)s")
+logging.basicConfig(filename = "mylog.log", format = "%(asctime)s\t%(levelname)s\t%(funcName)s\t%(lineno)d\t%(message)s")
 
 logger.info("Bot started")
 
@@ -68,10 +68,10 @@ def callback_inline(call):
             next_q.add(next_button, end_button)
             right_answer = str(answers[num][answersmask[num]])
             if call.data[0] == "T":
-                logger.info("Passed question: " + str(num + 1))
+                logger.info("Passed question" + str(num + 1))
                 bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="*Правильно!* \n\nПолностью предложение звучит так: \n\n_" + str(questions[num]).replace("____", right_answer) + "_\n\nПродолжим?", reply_markup=next_q, parse_mode='Markdown')
             else:
-                logger.info("Failed question: " + str(num + 1))
+                logger.info("Failed question" + str(num + 1))
                 bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="*Неверно.* \n\nПравильный ответ: *" + right_answer + "*, а полностью предложение звучит так: \n\n_" + str(questions[num]).replace("____", right_answer) + "_\n\nПродолжим?", reply_markup=next_q, parse_mode='Markdown')
         elif call.data[:4] == "skip":
             bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=call.message.text)
@@ -85,9 +85,11 @@ def callback_inline(call):
         elif call.data[:4] == "easy":
             bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=call.message.text)
             num = int(call.data[4])
-            logger.info("Easy question: " + str(num + 1))
+            logger.info("Easy question\t" + str(num + 1))
             question(call, num)
 
-
-
 bot.infinity_polling()
+
+
+def get_message_for_logfile(message, user_id=None, num=None):
+    logger.info(message + "\t" + str(num))

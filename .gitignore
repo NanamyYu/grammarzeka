@@ -134,5 +134,5 @@ labs/datasets/
 labs/jsonl/test.jsonl
 
 
-# Bot token file
-config.json
+# Bot log
+mylog.log

@@ -136,3 +136,5 @@ labs/jsonl/test.jsonl
 
 # Bot log
 mylog.log
+
+test.py

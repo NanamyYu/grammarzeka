@@ -104,11 +104,12 @@ c1_level_path = save_words(level='c1')
 
 
 # Вспомогательные функции
-def transform_word(word: str) -> str:
+def transform_word(word: str) -> tuple:
     delete_symbols = set(string.punctuation) - set('-') | set('«»…')
-    word = ''.join([w for w in word.lower().replace(' ', '') if w not in delete_symbols])
+    word = ''.join([w for w in word.replace(' ', '') if w not in delete_symbols])
     word = re.sub('[a-zA-Z]|\d', '', word)
-    return word
+    is_capitalized = word[0].isupper() if word else False
+    return word.lower(), is_capitalized
 
 def get_word_info(word: str) -> tuple: 
     morph_parse = morph.parse(word)[0]
@@ -312,7 +313,7 @@ def analyze_text(filepath: str, stop=None, unique=True, show_plot=True) -> pd.Da
     text_df = pd.DataFrame(columns=['lemma', 'difficulty'])
     with open(filepath, 'rb') as f:
         for i, word in enumerate(tqdm(f.read().decode('utf-8').split())):
-            word = transform_word(word)
+            word = transform_word(word)[0]
             if word and (not unique or word not in text_df.index):
                 difficulty = word_difficulty(word)
                 info = {'lemma': difficulty['lemma'],

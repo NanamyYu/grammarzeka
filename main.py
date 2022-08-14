@@ -53,7 +53,7 @@ def question(call, exc=None):
     # numquest = [0, 1, 2]
     # if exc != None:
     #     numquest.remove(exc)
-    num = random.choice(range(15223))
+    num = random.choice(range(sentences.shape[0] - 1))
     markup=types.InlineKeyboardMarkup()
     numword = random.choice(range(len(sentences['complex_words'][num])))
     markup.add(types.InlineKeyboardButton(text=sentences['complex_words'][num][numword]['word'], callback_data="T"))

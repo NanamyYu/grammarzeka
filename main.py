@@ -117,13 +117,13 @@ def callback_inline(call):
                 stats[str(num)][0] += 1
                 write_stats()
                 get_message_for_logfile("Question passed")
-                bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="❗️" + sentences['sentence'][num].replace(sentences['complex_words'][num][numword]['word'],  sentences['complex_words'][num][numword]['word'].upper()) + "\n\n✅Правильно!✅\n\nПродолжим?", reply_markup=next_q, parse_mode='Markdown')
+                bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="❗️" + sentences['sentence'][num].replace(sentences['complex_words'][num][numword]['word'],  sentences['complex_words'][num][numword]['word'].upper()) + "\n\n✅Правильно!✅\n\nПродолжим?", reply_markup=next_q)
             else:
                 read_stats()
                 stats[str(num)][1] += 1
                 write_stats()
                 get_message_for_logfile("Question failed")
-                bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="❗️" + sentences['sentence'][num].replace(sentences['complex_words'][num][numword]['word'],  sentences['complex_words'][num][numword]['word'].upper()) + "\n\n❌Неверно.❌\nПравильный ответ: " + sentences['complex_words'][num][numword]['word'] + ".\n\nПродолжим?", reply_markup=next_q, parse_mode='Markdown')
+                bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="❗️" + sentences['sentence'][num].replace(sentences['complex_words'][num][numword]['word'],  sentences['complex_words'][num][numword]['word'].upper()) + "\n\n❌Неверно.❌\nПравильный ответ: " + sentences['complex_words'][num][numword]['word'] + ".\n\nПродолжим?", reply_markup=next_q)
         elif call.data[:4] == "skip":
             read_history()
             history[str(call.message.chat.id)]["Now"] = None

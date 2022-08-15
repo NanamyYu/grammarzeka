@@ -16,7 +16,7 @@ bot = telebot.TeleBot(token)
 logger = logging.getLogger('grammarzeka')
 logger.setLevel(logging.INFO)
 handler = TimedRotatingFileHandler(
-    "logs/log.log", when="h", interval=1, backupCount=12
+    "log.log", when="h", interval=1, backupCount=12
 )
 handler.setFormatter(logging.Formatter("%(asctime)s\t%(levelname)s\t%(lineno)d\t%(message)s"))
 handler.setLevel(logging.INFO)

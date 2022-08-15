@@ -135,7 +135,7 @@ labs/jsonl/test.jsonl
 
 
 # Bot log
-logs/
+logs/*
 
 stats.json
 history.json

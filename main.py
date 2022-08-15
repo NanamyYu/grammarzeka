@@ -6,7 +6,7 @@ import os
 import logging
 import jsonlines
 import pandas
-import time
+import datetime
 from logging.handlers import TimedRotatingFileHandler
 
 token = os.getenv("GRAMMARZEKA_TOKEN")
@@ -50,6 +50,12 @@ def start_message(message):
         history[str(message.chat.id)]["Successful"] = []
         history[str(message.chat.id)]["Easy"] = []
         history[str(message.chat.id)]["Now"] = None
+        history[str(message.chat.id)]["Join"] = datetime.datetime.today().strftime("%d.%m.%Y %H:%M:%S")
+        history[str(message.chat.id)]["Last seen"] = datetime.datetime.today().strftime("%d.%m.%Y %H:%M:%S")
+        history[str(message.chat.id)]["Games"] = 0
+        history[str(message.chat.id)]["QperGame"] = 0
+        history[str(message.chat.id)]["Questions now"] = 0
+        history[str(message.chat.id)]["QCount"] = 0
         write_history()
     bot.send_message(message.chat.id, temp_text["hello_message"], parse_mode='Markdown')
 
@@ -70,6 +76,7 @@ def question(call, exc=None):
     #     numquest.remove(exc)
     global num, numword
     read_history()
+    history[str(call.message.chat.id)]["Questions now"] += 1
     num = random.choice(list(all_questions - set(history[str(call.message.chat.id)]["Successful"]) - set(history[str(call.message.chat.id)]["Easy"])))
     history[str(call.message.chat.id)]["Now"] = num
     write_history()
@@ -91,6 +98,9 @@ def question(call, exc=None):
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call):
     global num, numword, history
+    read_history()
+    history[str(call.message.chat.id)]["Last seen"] = datetime.datetime.today().strftime("%d.%m.%Y %H:%M:%S")
+    write_history()
     if num == None:
         num = history[str(call.message.chat.id)]["Now"]
     if call.message:
@@ -118,7 +128,7 @@ def callback_inline(call):
             read_history()
             history[str(call.message.chat.id)]["Now"] = None
             write_history()
-            bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=call.message.text, parse_mode='Markdown')
+            bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=call.message.text)
             if len(call.data) > 4:
                 question(call, int(call.data[4]))
             else:
@@ -126,6 +136,12 @@ def callback_inline(call):
         elif call.data == "end":
             read_history()
             history[str(call.message.chat.id)]["Now"] = None
+            history[str(call.message.chat.id)]["Games"] += 1
+            history[str(call.message.chat.id)]["QperGame"] *= history[str(call.message.chat.id)]["Games"] - 1
+            history[str(call.message.chat.id)]["QperGame"] += history[str(call.message.chat.id)]["Questions now"]
+            history[str(call.message.chat.id)]["QperGame"] /= history[str(call.message.chat.id)]["Games"]
+            history[str(call.message.chat.id)]["Qcount"] += history[str(call.message.chat.id)]["Questions now"]
+            history[str(call.message.chat.id)]["Questions now"] = 0
             write_history()
             bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=call.message.text)
             bot.send_message(chat_id=call.message.chat.id, text=temp_text["quiz_end"])
@@ -138,10 +154,12 @@ def callback_inline(call):
             question(call, num)
 
 def get_message_for_logfile(message, user_id=""):
-    if num != None:
+    if user_id != None:
+        logger.info(message + "\t" + str(user_id))
+    elif num != None:
         logger.info(message + "\t" + str(num))
     else:
-        logger.info(message + "\t" + str(user_id))
+        logger.info(message)
 
 
 def read_history():

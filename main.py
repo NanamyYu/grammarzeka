@@ -140,7 +140,7 @@ def callback_inline(call):
             history[str(call.message.chat.id)]["QperGame"] *= history[str(call.message.chat.id)]["Games"] - 1
             history[str(call.message.chat.id)]["QperGame"] += history[str(call.message.chat.id)]["Questions now"]
             history[str(call.message.chat.id)]["QperGame"] /= history[str(call.message.chat.id)]["Games"]
-            history[str(call.message.chat.id)]["Qcount"] += history[str(call.message.chat.id)]["Questions now"]
+            history[str(call.message.chat.id)]["QCount"] += history[str(call.message.chat.id)]["Questions now"]
             history[str(call.message.chat.id)]["Questions now"] = 0
             write_history()
             bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=call.message.text)

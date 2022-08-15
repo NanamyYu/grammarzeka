@@ -69,6 +69,7 @@ def question(call, exc=None):
     # if exc != None:
     #     numquest.remove(exc)
     global num, numword
+    read_history()
     num = random.choice(list(all_questions - set(history[str(call.message.chat.id)]["Successful"]) - set(history[str(call.message.chat.id)]["Easy"])))
     history[str(call.message.chat.id)]["Now"] = num
     write_history()
@@ -99,13 +100,16 @@ def callback_inline(call):
             next_button=types.InlineKeyboardButton(text="Следующий вопрос", callback_data="skip")
             next_q.add(next_button, end_button)
             if call.data[0] == "T":
+                read_history()
                 history[str(call.message.chat.id)]["Successful"].append(num)
                 write_history()
+                read_stats()
                 stats[str(num)][0] += 1
                 write_stats()
                 get_message_for_logfile("Question passed")
                 bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="❗️" + sentences['sentence'][num].replace(sentences['complex_words'][num][numword]['word'],  sentences['complex_words'][num][numword]['word'].upper()) + "\n\n✅Правильно!✅\n\nПродолжим?", reply_markup=next_q, parse_mode='Markdown')
             else:
+                read_stats()
                 stats[str(num)][1] += 1
                 write_stats()
                 get_message_for_logfile("Question failed")
@@ -126,6 +130,7 @@ def callback_inline(call):
             bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=call.message.text)
             bot.send_message(chat_id=call.message.chat.id, text=temp_text["quiz_end"])
         elif call.data[:4] == "easy":
+            read_history()
             history[str(call.message.chat.id)]["Easy"].append(num)
             write_history()
             bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=call.message.text)
@@ -160,12 +165,18 @@ def write_stats():
         json.dump(stats, f)
 
 # Passed and failed counts
-stats = {}
-read_stats()
+stats = {i: (0, 0) for i in range(sentences.shape[0])}
+try:
+    read_stats()
+except:
+    write_stats()
 
 # Users history
 history = {}
-read_history()
+try:
+    read_history()
+except:
+    write_history()
 
 get_message_for_logfile("Bot started")
 

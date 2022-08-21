@@ -38,6 +38,15 @@ MAX_MORPH = 7
 
 
 # Датасеты
+def save_zip_csv(url: str, dirname: str, new_filename: str) -> None:
+    fullname = os.path.join(dirname, new_filename)
+    
+    if not os.path.exists(fullname):
+        r = requests.get(url)
+        with r, zipfile.ZipFile(io.BytesIO(r.content)) as archive:
+            archive.extractall(dirname)
+    return fullname
+
 def save_zip_txt(url: str, dirname: str, new_filename: str) -> None:
     fullname = os.path.join(dirname, new_filename)
     
@@ -76,13 +85,9 @@ def save_words(level:str):
 a1_level_path = save_words(level='a1')
 c1_level_path = save_words(level='c1')
 
-dirname = 'datasets/freq'
-name = 'freqrnc2011.csv'
-fullname = os.path.join(dirname, name)
-if not os.path.exists(fullname):
-    r = requests.get('http://dict.ruslang.ru/Freq2011.zip')
-    with r, zipfile.ZipFile(io.BytesIO(r.content)) as archive:
-        archive.extractall(dirname)
+fullname = save_zip_csv(url='http://dict.ruslang.ru/Freq2011.zip',
+                        dirname='datasets/freq',
+                        new_filename='freqrnc2011.csv')
 freq_df = pd.read_csv(fullname, sep='\t')[['Lemma', 'Freq(ipm)']]
 freq_df['Lemma'] = freq_df['Lemma'].str.lower()
 freq_df['length'] = freq_df['Lemma'].str.len()

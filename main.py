@@ -81,7 +81,7 @@ def question(call, exc=None):
     history[str(call.message.chat.id)]["Now"] = num
     write_history()
     markup=types.InlineKeyboardMarkup()
-    numword = random.choice(range(len(sentences['complex_words'][num])))
+    numword = sentences['using_word_id']
     true_button = random.choice(range(len(sentences['complex_words'][num][numword]['distortions']) + 1))
     fake_button = 0
     for i in range(len(sentences['complex_words'][num][numword]['distortions']) + 1):

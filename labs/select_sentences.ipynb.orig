@@ -1,0 +1,1259 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "id": "technological-collect",
+   "metadata": {},
+   "source": [
+    "# Реализация отбора предложений (Гареева)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "optical-blink",
+   "metadata": {},
+   "source": [
+    "### Функция сложности слова"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "id": "neither-lithuania",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "%run scripts/word_difficulty.py"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "blond-adobe",
+   "metadata": {},
+   "source": [
+    "### Функция создания искажений"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "id": "union-store",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "%run scripts/create_distortions.py"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "elder-nirvana",
+   "metadata": {},
+   "source": [
+    "### Белый список слов"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "extensive-bathroom",
+   "metadata": {},
+   "source": [
+    "Для того, чтобы определять существуемость слова, будем использовать большой датасет русских слов. (https://github.com/danakt/russian-words)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "id": "instant-meeting",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>word</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>-де</th>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>-ка</th>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>-либо</th>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>-нибудь</th>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>-с</th>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>...</th>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>посмурневшему</th>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>посмурневшею</th>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>посмурневши</th>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>посмурневшие</th>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>посмурневший</th>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "<p>1507676 rows × 0 columns</p>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "Empty DataFrame\n",
+       "Columns: []\n",
+       "Index: [-де, -ка, -либо, -нибудь, -с, -таки, -то, а, а-конто, а-ля, а.л., аарона, ааронов, аб, аба, абажур, абажура, абажурам, абажурами, абажурах, абажуре, абажурная, абажурного, абажурное, абажурной, абажурном, абажурному, абажурною, абажурную, абажурные, абажурный, абажурным, абажурными, абажурных, абажуров, абажуродержателе, абажуродержателей, абажуродержателем, абажуродержатели, абажуродержатель, абажуродержателю, абажуродержателя, абажуродержателям, абажуродержателями, абажуродержателях, абажуром, абажуру, абажурчик, абажурчика, абажурчикам, абажурчиками, абажурчиках, абажурчике, абажурчики, абажурчиков, абажурчиком, абажурчику, абажуры, абаз, абаза, абазам, абазами, абазах, абазе, абазией, абазиею, абазии, абазин, абазина, абазинам, абазинами, абазинах, абазине, абазинец, абазинка, абазинкам, абазинками, абазинках, абазинке, абазинки, абазинкой, абазинкою, абазинку, абазинов, абазинок, абазином, абазинская, абазинские, абазинский, абазинским, абазинскими, абазинских, абазинского, абазинское, абазинской, абазинском, абазинскому, абазинскою, абазинскую, абазину, ...]\n",
+       "\n",
+       "[1507676 rows x 0 columns]"
+      ]
+     },
+     "execution_count": 3,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "dirname = 'datasets/white_list'\n",
+    "fullname = os.path.join(dirname, 'russian.txt')\n",
+    "\n",
+    "if not os.path.exists(fullname):\n",
+    "    url = 'https://github.com/danakt/russian-words/raw/master/russian.txt'\n",
+    "    r = requests.get(url)\n",
+    "    os.makedirs(dirname, exist_ok=True)\n",
+    "    with open(fullname, 'wb') as ru:\n",
+    "        ru.write(r.content)\n",
+    "    \n",
+    "white_list_df = pd.read_csv(fullname, sep='\\n', encoding='cp1251', names=['word'])\n",
+    "white_list_df = white_list_df[~white_list_df['word'].str.lower().duplicated(keep=False)]\n",
+    "white_list_df = white_list_df[~white_list_df['word'].str.contains('[А-Я]', regex=True)]\n",
+    "white_list_df = white_list_df.set_index('word')\n",
+    "white_list_df"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "detected-longitude",
+   "metadata": {},
+   "source": [
+    "### Список сложных слов"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "prospective-equivalent",
+   "metadata": {},
+   "source": [
+    "Реализация функции, которая будет на вход получать список слов, а на выход получать список словарей для каждого сложного слова, отобранного по критериям, со всей нужной информацией: индексом в предложении, самим словом, сложностью и списком искажений."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "id": "laughing-buyer",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def get_complex_word_list(sentence_words: List[str]) -> List[dict]:\n",
+    "    complex_words = dict()\n",
+    "    for index, word in enumerate(sentence_words):\n",
+    "        word, is_capitalized = transform_word(word)\n",
+    "        if word in white_list_df.index:\n",
+    "            difficulty = word_difficulty(word)\n",
+    "            if difficulty['difficulty'] < 0.5 or difficulty['lemma'] in complex_words:\n",
+    "                complex_words[difficulty['lemma']] = None\n",
+    "                continue\n",
+    "            distortions = create_distortions(word=word, lemma=difficulty['lemma'] , max_amount=6)\n",
+    "            if len(distortions) == 0:\n",
+    "                continue\n",
+    "            word = {'index': index,\n",
+    "                    'word': word.capitalize() if is_capitalized else word,\n",
+    "                    'difficulty': round(difficulty['difficulty'], 2),\n",
+    "                    'distortions': list(distortion.capitalize() if is_capitalized else distortion \\\n",
+    "                                        for distortion in distortions)}\n",
+    "            complex_words[difficulty['lemma']] = word\n",
+    "    return list(word for word in complex_words.values() if word is not None)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "exotic-account",
+   "metadata": {},
+   "source": [
+    "Протестируем"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "id": "streaming-monitoring",
+   "metadata": {
+    "scrolled": false
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "[{'index': 0,\n",
+       "  'word': 'Написанные',\n",
+       "  'difficulty': 0.52,\n",
+       "  'distortions': ['Нописанные',\n",
+       "   'Написаные',\n",
+       "   'Нописаные',\n",
+       "   'Написонные',\n",
+       "   'Написоные']},\n",
+       " {'index': 6,\n",
+       "  'word': 'приключениях',\n",
+       "  'difficulty': 0.61,\n",
+       "  'distortions': ['преключениях']},\n",
+       " {'index': 9,\n",
+       "  'word': 'погружают',\n",
+       "  'difficulty': 0.71,\n",
+       "  'distortions': ['пагружают']},\n",
+       " {'index': 13,\n",
+       "  'word': 'фантастики',\n",
+       "  'difficulty': 0.63,\n",
+       "  'distortions': ['фонтастики', 'фонтастыки', 'фантастыки']}]"
+      ]
+     },
+     "execution_count": 5,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "complex_words = get_complex_word_list(sentence_words=('Написанные для детей произведения о необыкновенных приключениях земной' +\n",
+    "                                                      'девочки Алисы погружают читателя в мир фантастики и сказок.').split())\n",
+    "complex_words"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "computational-selection",
+   "metadata": {},
+   "source": [
+    "### Выбор проверяемых слов"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "stretch-caution",
+   "metadata": {},
+   "source": [
+    "Функция выбора проверяемого слова принимает на вход список сложных слов в предложении и предполагаемый сет уже использованных слов и возвращает индекс выбранного слова в списке, если его вообще можно выбрать."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "id": "intended-effort",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "from typing import Set\n",
+    "\n",
+    "def choose_word_id(complex_words: List[dict], used_words: Set[str]=set()) -> Optional[int]:\n",
+    "    for complex_words in sorted(enumerate(complex_words), key=(lambda word: word[1]['difficulty']), reverse=True):\n",
+    "        if complex_words[1]['word'] not in used_words:\n",
+    "            return complex_words[0]\n",
+    "    return None"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "positive-lincoln",
+   "metadata": {},
+   "source": [
+    "Протестируем"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "id": "christian-founder",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "{'index': 9, 'word': 'погружают', 'difficulty': 0.71, 'distortions': ['пагружают']}\n",
+      "{'index': 9, 'word': 'погружают', 'difficulty': 0.71, 'distortions': ['пагружают']}\n",
+      "{'index': 13, 'word': 'фантастики', 'difficulty': 0.63, 'distortions': ['фонтастики', 'фонтастыки', 'фантастыки']}\n",
+      "3\n"
+     ]
+    }
+   ],
+   "source": [
+    "print(complex_words[choose_word_id(complex_words=complex_words)])\n",
+    "print(complex_words[choose_word_id(complex_words=complex_words, used_words={'необыкновенных', 'приключениях'})])\n",
+    "print(complex_words[choose_word_id(complex_words=complex_words, used_words={'необыкновенных', 'погружают'})])\n",
+    "print(choose_word_id(complex_words=complex_words, used_words={'необыкновенных', 'погружают','приключениях', 'произведения'}))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "diagnostic-scope",
+   "metadata": {},
+   "source": [
+    "### Анализ предложения"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "liquid-lawrence",
+   "metadata": {},
+   "source": [
+    "Функция, делающая полный анализ предложения, принимает на вход само предложение, обрабатывает его и возвращает словарь JSON со всей нужной информацией, который в последствие будет строкой в файле всех предложений. Если предложение не подходит по длине - его не рассматриваем."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "id": "friendly-yield",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def analyze_sentence(sentence: str, used_words: Set[str]=set()) -> Optional[dict]:\n",
+    "    sentence = re.sub('«|»', '', sentence)\n",
+    "    sentence = re.sub('\\xa0', ' ', sentence).strip()\n",
+    "    sentence_words = sentence.split()\n",
+    "    if 8 <= len(sentence_words) <= 25:\n",
+    "        complex_words = get_complex_word_list(sentence_words=sentence_words)\n",
+    "        using_word_id = choose_word_id(complex_words, used_words)\n",
+    "        if using_word_id is not None:\n",
+    "            return {\n",
+    "                'sentence': sentence,\n",
+    "                'using_word_id': using_word_id,\n",
+    "                'complex_words': complex_words\n",
+    "            }\n",
+    "    return None"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "continental-hawaii",
+   "metadata": {},
+   "source": [
+    "Протестируем"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 9,
+   "id": "constant-maximum",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "{'sentence': 'Написанные для детей произведения о необыкновенных приключениях земнойдевочки Алисы погружают читателя в мир фантастики и сказок.', 'using_word_id': 2, 'complex_words': [{'index': 0, 'word': 'Написанные', 'difficulty': 0.52, 'distortions': ['Нописанные', 'Написаные', 'Нописаные', 'Написонные', 'Написоные']}, {'index': 6, 'word': 'приключениях', 'difficulty': 0.61, 'distortions': ['преключениях']}, {'index': 9, 'word': 'погружают', 'difficulty': 0.71, 'distortions': ['пагружают']}, {'index': 13, 'word': 'фантастики', 'difficulty': 0.63, 'distortions': ['фонтастики', 'фонтастыки', 'фантастыки']}]}\n",
+      "None\n"
+     ]
+    }
+   ],
+   "source": [
+    "print(analyze_sentence(sentence='Написанные для детей произведения о необыкновенных приключениях земной' +\n",
+    "                            'девочки Алисы погружают читателя в мир фантастики и сказок.',\n",
+    "                      used_words={'приключениях'}))\n",
+    "print(analyze_sentence(sentence='Простые слова.'))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "developed-pakistan",
+   "metadata": {},
+   "source": [
+    "### Хранение предложений"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "printable-disco",
+   "metadata": {},
+   "source": [
+    "Напишем примеры классов с реализацией сохранения и чтения информации о предложениях в выбранном формате."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 10,
+   "id": "normal-decline",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import json\n",
+    "from itertools import islice\n",
+    "\n",
+    "class JSONLCreator:\n",
+    "    fullname = ''\n",
+    "    number_of_sentences = 0\n",
+    "    \n",
+    "    def __init__(self, dirname: str='jsonl', filename: str='output.jsonl'):\n",
+    "        self.fullname = os.path.join(dirname, filename)\n",
+    "        os.makedirs(dirname, exist_ok=True)\n",
+    "        open(self.fullname, 'w', encoding='utf-8').close()\n",
+    "        \n",
+    "    def _add_content(self, content: Optional[dict]) -> None:\n",
+    "        with open(self.fullname, 'a', encoding='utf-8') as outfile:\n",
+    "            json.dump(content, outfile, ensure_ascii=False)\n",
+    "            outfile.write('\\n')\n",
+    "\n",
+    "    def add_sentence_info(self, sentence: Optional[dict]) -> None:\n",
+    "        self._add_content(content=sentence)\n",
+    "        self.number_of_sentences += 1\n",
+    "            \n",
+    "    def end_file(self): \n",
+    "        meta_info = {'number_of_sentences': self.number_of_sentences}\n",
+    "        self._add_content(content=meta_info)\n",
+    "        \n",
+    "        \n",
+    "class JSONLReader:\n",
+    "    fullname = ''\n",
+    "    number_of_sentences = 0\n",
+    "    \n",
+    "    def __init__(self, dirname: str='jsonl', filename: str='output.jsonl'):\n",
+    "        self.fullname = os.path.join(dirname, filename)\n",
+    "        meta_info = json.loads(self._get_last_line())\n",
+    "        self.number_of_sentences = meta_info['number_of_sentences']\n",
+    "                                     \n",
+    "    def _get_last_line(self) -> str:                             \n",
+    "        with open(self.fullname, 'rb') as file:\n",
+    "            try:\n",
+    "                file.seek(-2, os.SEEK_END)\n",
+    "                while file.read(1) != b'\\n':\n",
+    "                    file.seek(-2, os.SEEK_CUR)\n",
+    "            except OSError:\n",
+    "                \n",
+    "                file.seek(0)\n",
+    "            last_line = file.readline().decode()\n",
+    "        return last_line\n",
+    "    \n",
+    "    def get_n_sentence_info(self, n) -> dict:\n",
+    "        if not (0 <= n < self.number_of_sentences):\n",
+    "            return None\n",
+    "        with open(self.fullname, 'r', encoding='utf-8') as file:\n",
+    "            sentence_info = json.loads(next(islice(file, n, None)))\n",
+    "        return sentence_info"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "least-collectible",
+   "metadata": {},
+   "source": [
+    "Протестируем"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 11,
+   "id": "directed-roots",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "2\n",
+      "{'sentence': 'Написанные для детей произведения о необыкновенных приключениях земнойдевочки Алисы погружают читателя в мир фантастики и сказок.', 'using_word_id': 2, 'complex_words': [{'index': 0, 'word': 'Написанные', 'difficulty': 0.52, 'distortions': ['Нописанные', 'Написаные', 'Нописаные', 'Написонные', 'Написоные']}, {'index': 6, 'word': 'приключениях', 'difficulty': 0.61, 'distortions': ['преключениях']}, {'index': 9, 'word': 'погружают', 'difficulty': 0.71, 'distortions': ['пагружают']}, {'index': 13, 'word': 'фантастики', 'difficulty': 0.63, 'distortions': ['фонтастики', 'фонтастыки', 'фантастыки']}]}\n",
+      "{'sentence': 'Тогда я позвонил в Минералогический музей Фридману, с которым я когда-то встречался на Памире.', 'using_word_id': 0, 'complex_words': [{'index': 4, 'word': 'Минералогический', 'difficulty': 0.88, 'distortions': ['Минералагический', 'Миниралогический', 'Минералогичиский', 'Менералогический', 'Минерологический']}]}\n",
+      "None\n",
+      "None\n"
+     ]
+    }
+   ],
+   "source": [
+    "sentences = ['Написанные для детей произведения о необыкновенных приключениях земной' +\n",
+    "                            'девочки Алисы погружают читателя в мир фантастики и сказок.',\n",
+    "            'Тогда я позвонил в Минералогический музей Фридману, с которым я когда-то встречался на Памире.']\n",
+    "\n",
+    "jsonl_creator = JSONLCreator(filename='test.jsonl')\n",
+    "for sentence in sentences:\n",
+    "    jsonl_creator.add_sentence_info(analyze_sentence(sentence))\n",
+    "jsonl_creator.end_file()\n",
+    "\n",
+    "jsonl_reader = JSONLReader(filename='test.jsonl')\n",
+    "print(jsonl_reader.number_of_sentences)\n",
+    "print(jsonl_reader.get_n_sentence_info(n=0))\n",
+    "print(jsonl_reader.get_n_sentence_info(n=1))\n",
+    "print(jsonl_reader.get_n_sentence_info(n=-1))\n",
+    "print(jsonl_reader.get_n_sentence_info(n=2))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "peripheral-buyer",
+   "metadata": {},
+   "source": [
+    "### Корпус текстов"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "nasty-washer",
+   "metadata": {},
+   "source": [
+    "Для нашего бота с говорящим названием \"Граммазека\": грамматика и Громозека - имя персонажа из серии книг об Алисе Селезнёвой Кира Булычёва, будем использовать корпус текста из вышеупомянутых книг.\n",
+    "\n",
+    "Скачаем и преобразуем нужный текст."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 12,
+   "id": "outer-consolidation",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def save_alisa_selezneva_txt(dirname: str, new_filename: str) -> None:\n",
+    "    fullname = os.path.join(dirname, new_filename)\n",
+    "    \n",
+    "    if not os.path.exists(fullname):\n",
+    "        with open(os.path.join(dirname, 'alisa-selezneva-kompilyaciya-knigi-1-21.txt'), 'rb') as f:\n",
+    "            text = f.read().decode('Windows-1251')\n",
+    "            with open(fullname, 'wb') as ru:\n",
+    "                ru.write(text.encode('utf-8'))\n",
+    "    return fullname\n",
+    "\n",
+    "alisa_selezneva_fullname = save_alisa_selezneva_txt(dirname='datasets/texts/alisa_selezneva', \n",
+    "                                                    new_filename='alisa_selezneva.txt')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "steady-smith",
+   "metadata": {},
+   "source": [
+    "### Отбор предложений"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "decent-frank",
+   "metadata": {},
+   "source": [
+    "Проанализируем корпус текстов и сохраним подходящие предложения и информацию о них в обговоренным формате."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 13,
+   "id": "sought-marriage",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def get_output_jsonl(filepath: str) -> str:\n",
+    "    return '.'.join(os.path.basename(filepath).split('.')[:-1]) + '.jsonl'\n",
+    "\n",
+    "def save_sentences(filepath: str, output_jsonl: str=None, stop=None) -> str:\n",
+    "    output_jsonl = output_jsonl if output_jsonl else get_output_jsonl(filepath)\n",
+    "    jsonl_creator = JSONLCreator(filename=output_jsonl)\n",
+    "    used_words = set()\n",
+    "    with open(filepath, 'rb') as f:\n",
+    "        for i, sentence in enumerate(tqdm(re.findall(r'.*?[.!\\?]', f.read().decode('utf-8')))):\n",
+    "            sentence_info = analyze_sentence(sentence, used_words)\n",
+    "            if sentence_info is None:\n",
+    "                continue\n",
+    "            used_words.add(sentence_info['complex_words'][sentence_info['using_word_id']]['word'])\n",
+    "            jsonl_creator.add_sentence_info(sentence_info)\n",
+    "            if stop and stop <= i:\n",
+    "                break\n",
+    "    jsonl_creator.end_file()\n",
+    "    return output_jsonl"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 14,
+   "id": "pursuant-willow",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "  0%|                                                                              | 52/129073 [00:00<24:41, 87.09it/s]\n"
+     ]
+    },
+    {
+     "data": {
+      "text/plain": [
+       "6"
+      ]
+     },
+     "execution_count": 14,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# example_jsonl = save_sentences(filepath=alisa_selezneva_fullname, output_jsonl='example.jsonl', stop=50)\n",
+    "example_jsonl = 'example.jsonl'\n",
+    "jsonl_reader = JSONLReader(filename=example_jsonl)\n",
+    "jsonl_reader.number_of_sentences"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 15,
+   "id": "related-perspective",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "100%|█████████████████████████████████████████████████████████████████████████| 129073/129073 [15:35<00:00, 137.98it/s]\n"
+     ]
+    }
+   ],
+   "source": [
+    "# alisa_selezneva_jsonl = save_sentences(filepath=alisa_selezneva_fullname)\n",
+    "alisa_selezneva_jsonl = get_output_jsonl(filepath=alisa_selezneva_fullname)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "endless-moldova",
+   "metadata": {},
+   "source": [
+    "### Анализ результатов"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "popular-timing",
+   "metadata": {},
+   "source": [
+    "Посмотрим, что вышло в результате."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 16,
+   "id": "linear-guyana",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def get_sentence_info_df(filename: str) -> pd.DataFrame:\n",
+    "    jsonl_reader = JSONLReader(filename=filename)\n",
+    "    print('number_of_sentences:', jsonl_reader.number_of_sentences)\n",
+    "    text_df = pd.DataFrame(columns=list(['sentence', 'using_word', 'word_difficulty', 'distortions', 'distortions_amount']))\n",
+    "    for n in tqdm(range(jsonl_reader.number_of_sentences)):\n",
+    "        sentence_info = jsonl_reader.get_n_sentence_info(n)\n",
+    "        using_word = sentence_info['complex_words'][sentence_info['using_word_id']]\n",
+    "        row = {'sentence': sentence_info['sentence'],\n",
+    "               'using_word': using_word['word'],\n",
+    "               'word_difficulty':  using_word['difficulty'],\n",
+    "               'distortions': using_word['distortions'],\n",
+    "               'distortions_amount': len(using_word['distortions'])}\n",
+    "        text_df = text_df.append(row, ignore_index=True)\n",
+    "    return text_df"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 17,
+   "id": "decimal-picture",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "  0%|                                                                              | 12/14759 [00:00<02:05, 117.74it/s]"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "number_of_sentences: 14759\n"
+     ]
+    },
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "100%|████████████████████████████████████████████████████████████████████████████| 14759/14759 [15:38<00:00, 15.73it/s]\n"
+     ]
+    },
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>sentence</th>\n",
+       "      <th>using_word</th>\n",
+       "      <th>word_difficulty</th>\n",
+       "      <th>distortions</th>\n",
+       "      <th>distortions_amount</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>Написанные для детей произведения о необыкнове...</td>\n",
+       "      <td>погружают</td>\n",
+       "      <td>0.71</td>\n",
+       "      <td>[пагружают]</td>\n",
+       "      <td>1</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>Шуша сказал, что пойдет в школу вместе с Алисо...</td>\n",
+       "      <td>учительница</td>\n",
+       "      <td>0.65</td>\n",
+       "      <td>[учитильница, учытильница, учытельница]</td>\n",
+       "      <td>3</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>По-моему, когда я уходил в первый раз в школу,...</td>\n",
+       "      <td>По-моему</td>\n",
+       "      <td>0.59</td>\n",
+       "      <td>[По моему, Помоему, Па-моему, Памоему, Па моему]</td>\n",
+       "      <td>5</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>Ей полезно будет знать, с каким несерьезным че...</td>\n",
+       "      <td>несерьезным</td>\n",
+       "      <td>0.85</td>\n",
+       "      <td>[нисерьезным, несирьезным, несирьездным, несер...</td>\n",
+       "      <td>5</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>Может быть, эти записки помогут учительнице во...</td>\n",
+       "      <td>учительнице</td>\n",
+       "      <td>0.65</td>\n",
+       "      <td>[учытильнице, учытельнице, учитильнице]</td>\n",
+       "      <td>3</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>...</th>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>14754</th>\n",
+       "      <td>— Но учтите, что мое терпение не безгранично.</td>\n",
+       "      <td>безгранично</td>\n",
+       "      <td>0.90</td>\n",
+       "      <td>[безгронично, бизгранично]</td>\n",
+       "      <td>2</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>14755</th>\n",
+       "      <td>— Ты сердишься, — сказал Чжан Цзолинь, — значи...</td>\n",
+       "      <td>сердишься</td>\n",
+       "      <td>0.57</td>\n",
+       "      <td>[сердешься, сердышься]</td>\n",
+       "      <td>2</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>14756</th>\n",
+       "      <td>Мы поддались обманщику, а он со своими друзьям...</td>\n",
+       "      <td>поддались</td>\n",
+       "      <td>0.64</td>\n",
+       "      <td>[подались, поддолись, падались, паддались]</td>\n",
+       "      <td>4</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>14757</th>\n",
+       "      <td>А друиды острова Элис — вовсе не друидами, а п...</td>\n",
+       "      <td>тамошними</td>\n",
+       "      <td>0.61</td>\n",
+       "      <td>[тамашними]</td>\n",
+       "      <td>1</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>14758</th>\n",
+       "      <td>Читайте об этих приключениях Коры Орват в рома...</td>\n",
+       "      <td>Галактическая</td>\n",
+       "      <td>0.81</td>\n",
+       "      <td>[Галоктическая, Голактическая, Галактичиская]</td>\n",
+       "      <td>3</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "<p>14759 rows × 5 columns</p>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "                                                sentence     using_word  \\\n",
+       "0      Написанные для детей произведения о необыкнове...      погружают   \n",
+       "1      Шуша сказал, что пойдет в школу вместе с Алисо...    учительница   \n",
+       "2      По-моему, когда я уходил в первый раз в школу,...       По-моему   \n",
+       "3      Ей полезно будет знать, с каким несерьезным че...    несерьезным   \n",
+       "4      Может быть, эти записки помогут учительнице во...    учительнице   \n",
+       "...                                                  ...            ...   \n",
+       "14754      — Но учтите, что мое терпение не безгранично.    безгранично   \n",
+       "14755  — Ты сердишься, — сказал Чжан Цзолинь, — значи...      сердишься   \n",
+       "14756  Мы поддались обманщику, а он со своими друзьям...      поддались   \n",
+       "14757  А друиды острова Элис — вовсе не друидами, а п...      тамошними   \n",
+       "14758  Читайте об этих приключениях Коры Орват в рома...  Галактическая   \n",
+       "\n",
+       "       word_difficulty                                        distortions  \\\n",
+       "0                 0.71                                        [пагружают]   \n",
+       "1                 0.65            [учитильница, учытильница, учытельница]   \n",
+       "2                 0.59   [По моему, Помоему, Па-моему, Памоему, Па моему]   \n",
+       "3                 0.85  [нисерьезным, несирьезным, несирьездным, несер...   \n",
+       "4                 0.65            [учытильнице, учытельнице, учитильнице]   \n",
+       "...                ...                                                ...   \n",
+       "14754             0.90                         [безгронично, бизгранично]   \n",
+       "14755             0.57                             [сердешься, сердышься]   \n",
+       "14756             0.64         [подались, поддолись, падались, паддались]   \n",
+       "14757             0.61                                        [тамашними]   \n",
+       "14758             0.81      [Галоктическая, Голактическая, Галактичиская]   \n",
+       "\n",
+       "      distortions_amount  \n",
+       "0                      1  \n",
+       "1                      3  \n",
+       "2                      5  \n",
+       "3                      5  \n",
+       "4                      3  \n",
+       "...                  ...  \n",
+       "14754                  2  \n",
+       "14755                  2  \n",
+       "14756                  4  \n",
+       "14757                  1  \n",
+       "14758                  3  \n",
+       "\n",
+       "[14759 rows x 5 columns]"
+      ]
+     },
+     "execution_count": 17,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "alisa_selezneva_df = get_sentence_info_df(alisa_selezneva_jsonl)\n",
+    "alisa_selezneva_df"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 18,
+   "id": "medieval-pottery",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>sentence</th>\n",
+       "      <th>using_word</th>\n",
+       "      <th>word_difficulty</th>\n",
+       "      <th>distortions</th>\n",
+       "      <th>distortions_amount</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>3091</th>\n",
+       "      <td>— Здесь мастеров нет, разница между Ларисой и ...</td>\n",
+       "      <td>непринципиальная</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>[неприндципиальная, непринтципиальная, неприлн...</td>\n",
+       "      <td>3</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>727</th>\n",
+       "      <td>Из воды, метрах в двадцати от берега, черным у...</td>\n",
+       "      <td>полузатопленной</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>[полузатопленой]</td>\n",
+       "      <td>1</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>768</th>\n",
+       "      <td>На обратном пути заехали на полузатопленную ба...</td>\n",
+       "      <td>полузатопленную</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>[полузатопленую]</td>\n",
+       "      <td>1</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>10699</th>\n",
+       "      <td>Флаер опустился у полуразрушенной крепости, на...</td>\n",
+       "      <td>полуразрушенной</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>[полуразрушиной, полуразрушеной, полурозрушенн...</td>\n",
+       "      <td>5</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3538</th>\n",
+       "      <td>Там, посередине, на небольшом холмике, стоял п...</td>\n",
+       "      <td>полуразрушенный</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>[полуразрушеный, полуразрушинный, полурозрушен...</td>\n",
+       "      <td>5</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>12022</th>\n",
+       "      <td>Подвал, оказывается, находился под большим пол...</td>\n",
+       "      <td>полуразрушенным</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>[полуразрушиным, полурозрушенным, полурозрушен...</td>\n",
+       "      <td>5</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>9149</th>\n",
+       "      <td>Минут через десять они выехали на большой плац...</td>\n",
+       "      <td>полуразрушенными</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>[полуразрушеными, полуразрушиными, полурозруше...</td>\n",
+       "      <td>5</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3834</th>\n",
+       "      <td>Две руки трудились, две другие были предостере...</td>\n",
+       "      <td>предостерегающе</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>[предостеригающе, предастерегающе, предостирег...</td>\n",
+       "      <td>4</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1388</th>\n",
+       "      <td>Вокруг большой, с длинными, как спутанные воло...</td>\n",
+       "      <td>протуберанцами</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>[протуберантцами, протубералнцами, протуберанд...</td>\n",
+       "      <td>3</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>807</th>\n",
+       "      <td>Так получилось, что я с детства люблю всяких ж...</td>\n",
+       "      <td>радиоприемники</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>[радиопреемники, радеоприемники, родиоприемник...</td>\n",
+       "      <td>4</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>9681</th>\n",
+       "      <td>Тут из кухни выскочила шустрая симферопольская...</td>\n",
+       "      <td>симферопольская</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>[семферопольская, симферопальская, симфирополь...</td>\n",
+       "      <td>3</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>9761</th>\n",
+       "      <td>На экране видеофона виднелось большеглазое тре...</td>\n",
+       "      <td>симферопольской</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>[симфиропольской, семферопольской, симферопаль...</td>\n",
+       "      <td>3</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>9706</th>\n",
+       "      <td>Вы бы видели, какая радость охватила родных Ал...</td>\n",
+       "      <td>симферопольскую</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>[симферопальскую, симфиропольскую, семферополь...</td>\n",
+       "      <td>3</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>13826</th>\n",
+       "      <td>— Он обернулся к столу, за которым уже сидел О...</td>\n",
+       "      <td>скатерть-самобранка</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>[скатиртьсамобранка, скатерть самобранка, скат...</td>\n",
+       "      <td>5</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>12404</th>\n",
+       "      <td>Как-то богомол задумался, вышел на улицу и сто...</td>\n",
+       "      <td>снегоуборочным</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>[снигоуборочным, снегауборочным, стнегоуборочным]</td>\n",
+       "      <td>3</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1953</th>\n",
+       "      <td>Ведь им тоже соблазнительно испытать свою маши...</td>\n",
+       "      <td>соблазнительно</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>[соблознительно, соблазнитильно, саблазднитель...</td>\n",
+       "      <td>5</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>11221</th>\n",
+       "      <td>— Досье на детей с неустойчивой психикой соста...</td>\n",
+       "      <td>суперкомпьютером</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>[суперкомпьютиром, супиркомпьютером, суперкамп...</td>\n",
+       "      <td>3</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>8555</th>\n",
+       "      <td>Он был в скафандре, шлем откинут за спину, вид...</td>\n",
+       "      <td>целеустремленный</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>[целиустремленный, цилеустремленный, цилеустре...</td>\n",
+       "      <td>5</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>692</th>\n",
+       "      <td>В яме было совсем темно, и только в неровном ч...</td>\n",
+       "      <td>четырехугольнике</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>[читырехугольнике, четырехугальнике]</td>\n",
+       "      <td>2</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2493</th>\n",
+       "      <td>Только наивные люди полагают, что день — это с...</td>\n",
+       "      <td>четырехэтажного</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>[читырехэтажного, четырихэтажного]</td>\n",
+       "      <td>2</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "                                                sentence           using_word  \\\n",
+       "3091   — Здесь мастеров нет, разница между Ларисой и ...     непринципиальная   \n",
+       "727    Из воды, метрах в двадцати от берега, черным у...      полузатопленной   \n",
+       "768    На обратном пути заехали на полузатопленную ба...      полузатопленную   \n",
+       "10699  Флаер опустился у полуразрушенной крепости, на...      полуразрушенной   \n",
+       "3538   Там, посередине, на небольшом холмике, стоял п...      полуразрушенный   \n",
+       "12022  Подвал, оказывается, находился под большим пол...      полуразрушенным   \n",
+       "9149   Минут через десять они выехали на большой плац...     полуразрушенными   \n",
+       "3834   Две руки трудились, две другие были предостере...      предостерегающе   \n",
+       "1388   Вокруг большой, с длинными, как спутанные воло...       протуберанцами   \n",
+       "807    Так получилось, что я с детства люблю всяких ж...       радиоприемники   \n",
+       "9681   Тут из кухни выскочила шустрая симферопольская...      симферопольская   \n",
+       "9761   На экране видеофона виднелось большеглазое тре...      симферопольской   \n",
+       "9706   Вы бы видели, какая радость охватила родных Ал...      симферопольскую   \n",
+       "13826  — Он обернулся к столу, за которым уже сидел О...  скатерть-самобранка   \n",
+       "12404  Как-то богомол задумался, вышел на улицу и сто...       снегоуборочным   \n",
+       "1953   Ведь им тоже соблазнительно испытать свою маши...       соблазнительно   \n",
+       "11221  — Досье на детей с неустойчивой психикой соста...     суперкомпьютером   \n",
+       "8555   Он был в скафандре, шлем откинут за спину, вид...     целеустремленный   \n",
+       "692    В яме было совсем темно, и только в неровном ч...     четырехугольнике   \n",
+       "2493   Только наивные люди полагают, что день — это с...      четырехэтажного   \n",
+       "\n",
+       "       word_difficulty                                        distortions  \\\n",
+       "3091               1.0  [неприндципиальная, непринтципиальная, неприлн...   \n",
+       "727                1.0                                   [полузатопленой]   \n",
+       "768                1.0                                   [полузатопленую]   \n",
+       "10699              1.0  [полуразрушиной, полуразрушеной, полурозрушенн...   \n",
+       "3538               1.0  [полуразрушеный, полуразрушинный, полурозрушен...   \n",
+       "12022              1.0  [полуразрушиным, полурозрушенным, полурозрушен...   \n",
+       "9149               1.0  [полуразрушеными, полуразрушиными, полурозруше...   \n",
+       "3834               1.0  [предостеригающе, предастерегающе, предостирег...   \n",
+       "1388               1.0  [протуберантцами, протубералнцами, протуберанд...   \n",
+       "807                1.0  [радиопреемники, радеоприемники, родиоприемник...   \n",
+       "9681               1.0  [семферопольская, симферопальская, симфирополь...   \n",
+       "9761               1.0  [симфиропольской, семферопольской, симферопаль...   \n",
+       "9706               1.0  [симферопальскую, симфиропольскую, семферополь...   \n",
+       "13826              1.0  [скатиртьсамобранка, скатерть самобранка, скат...   \n",
+       "12404              1.0  [снигоуборочным, снегауборочным, стнегоуборочным]   \n",
+       "1953               1.0  [соблознительно, соблазнитильно, саблазднитель...   \n",
+       "11221              1.0  [суперкомпьютиром, супиркомпьютером, суперкамп...   \n",
+       "8555               1.0  [целиустремленный, цилеустремленный, цилеустре...   \n",
+       "692                1.0               [читырехугольнике, четырехугальнике]   \n",
+       "2493               1.0                 [читырехэтажного, четырихэтажного]   \n",
+       "\n",
+       "      distortions_amount  \n",
+       "3091                   3  \n",
+       "727                    1  \n",
+       "768                    1  \n",
+       "10699                  5  \n",
+       "3538                   5  \n",
+       "12022                  5  \n",
+       "9149                   5  \n",
+       "3834                   4  \n",
+       "1388                   3  \n",
+       "807                    4  \n",
+       "9681                   3  \n",
+       "9761                   3  \n",
+       "9706                   3  \n",
+       "13826                  5  \n",
+       "12404                  3  \n",
+       "1953                   5  \n",
+       "11221                  3  \n",
+       "8555                   5  \n",
+       "692                    2  \n",
+       "2493                   2  "
+      ]
+     },
+     "execution_count": 18,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "alisa_selezneva_df.sort_values(by=['word_difficulty', 'using_word']).tail(20)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "varied-railway",
+   "metadata": {},
+   "source": [
+    "Всего отобралось 14759 предложений с таким распределением сложности выбранного слова:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 19,
+   "id": "ranging-photographer",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "image/png": "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\n",
+      "text/plain": [
+       "<Figure size 576x288 with 1 Axes>"
+      ]
+     },
+     "metadata": {
+      "needs_background": "light"
+     },
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "fig, ax = plt.subplots(figsize=(8, 4))\n",
+    "\n",
+    "sns.distplot(x=alisa_selezneva_df['word_difficulty'], label='1')\n",
+    "\n",
+    "ax.set_title('График распределения сложности выбранных слов')\n",
+    "ax.set_ylabel('Плотность распределения')\n",
+    "ax.set_xlabel('Сложность слова')\n",
+    "\n",
+    "plt.xlim(0.5, 1)\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 20,
+   "id": "reflected-blocking",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Всего слов: 14759\n",
+      "Слов без искажений: 0\n",
+      "Слов с искажениями: 14759\n"
+     ]
+    },
+    {
+     "data": {
+      "image/png": "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\n",
+      "text/plain": [
+       "<Figure size 576x288 with 1 Axes>"
+      ]
+     },
+     "metadata": {
+      "needs_background": "light"
+     },
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "countplot_distortions_df(alisa_selezneva_df)"
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.8.8"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}

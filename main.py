@@ -97,10 +97,11 @@ def question(call, exc=None):
         if i == true_button:
             markup.add(types.InlineKeyboardButton(text=sentences['complex_words'][num][numword]['word'], callback_data="T"))
         else:
-            markup.add(types.InlineKeyboardButton(text=sentences['complex_words'][num][numword]['distortions'][fake_button], callback_data="F"))
+            fake_word = sentences['complex_words'][num][numword]['distortions'][fake_button]
+            markup.add(types.InlineKeyboardButton(text=fake_word, callback_data="F" + fake_word))
             fake_button += 1
-    skip_button=types.InlineKeyboardButton(text="Пропустить", callback_data="skip"+str(num))
-    easy_button=types.InlineKeyboardButton(text="Слишком простой вопрос", callback_data="easy"+str(num))
+    skip_button=types.InlineKeyboardButton(text="Пропустить", callback_data="skip")
+    easy_button=types.InlineKeyboardButton(text="Слишком простой вопрос", callback_data="easy")
     markup.add(skip_button, easy_button, end_button)
     bot.send_message(chat_id=call.message.chat.id, text="❓" + sentences['sentence'][num].replace(sentences['complex_words'][num][numword]['word'],  "\_\_\_\_"), reply_markup=markup, parse_mode='Markdown')
 
@@ -129,8 +130,8 @@ def callback_inline(call):
                 bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="❗️" + sentences['sentence'][num].replace(sentences['complex_words'][num][numword]['word'],  sentences['complex_words'][num][numword]['word'].upper()) + "\n\n✅Правильно!✅\n\nПродолжим?", reply_markup=next_q)
             else:
                 get_message_for_logfile("Question failed", call.message.chat.id)
-                bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="❗️" + sentences['sentence'][num].replace(sentences['complex_words'][num][numword]['word'],  sentences['complex_words'][num][numword]['word'].upper()) + "\n\n❌Неверно.❌\nПравильный ответ: " + sentences['complex_words'][num][numword]['word'] + ".\n\nПродолжим?", reply_markup=next_q)
-        elif call.data[:4] == "skip":
+                bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="❗️" + sentences['sentence'][num].replace(sentences['complex_words'][num][numword]['word'],  sentences['complex_words'][num][numword]['word'].upper()) + "\n\n❌Неверно.❌\nПравильный ответ: " + sentences['complex_words'][num][numword]['word'] + ".\nТы выбрал: " + call.data[1:] + ".\n\nПродолжим?", reply_markup=next_q)
+        elif call.data == "skip":
             read_history()
             history[str(call.message.chat.id)]["Now"] = None
             write_history()
@@ -140,7 +141,7 @@ def callback_inline(call):
             else:
                 question(call)
         elif call.data == "end":
-            get_message_for_logfile("Game ended", call.message.chat.id)
+            get_message_for_logfile("Game ended", call.message.chat.id, needqnum=False)
             read_history()
             history[str(call.message.chat.id)]["Now"] = None
             history[str(call.message.chat.id)]["Games"] += 1
@@ -152,7 +153,7 @@ def callback_inline(call):
             write_history()
             bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=call.message.text)
             bot.send_message(chat_id=call.message.chat.id, text=temp_text["quiz_end"])
-        elif call.data[:4] == "easy":
+        elif call.data == "easy":
             read_history()
             history[str(call.message.chat.id)]["Easy"].append(num)
             write_history()
@@ -160,11 +161,11 @@ def callback_inline(call):
             get_message_for_logfile("Easy question", call.message.chat.id)
             question(call, num)
 
-def get_message_for_logfile(message, user_id=""):
-    if num != None:
+def get_message_for_logfile(message, user_id="", needqnum=True):
+    if num != None and needqnum:
         logger.info(message + "\t" + str(num) + "\t" + str(user_id))
     else:
-        logger.info(message)
+        logger.info(message + "\t" + str(user_id))
 
 
 def read_history():
@@ -178,12 +179,12 @@ def write_history():
         json.dump(history, f)
 
 def log_saver():
-    get_message_for_logfile("Logfile sended")
+    get_message_for_logfile("Logfile sended", needqnum=False)
     with open("log.log", "rb") as f:
         bot.send_document(chat_id=os.getenv("TG_ID"), document=f, caption="Log "+datetime.datetime.today().strftime("%d.%m.%Y %H:%M:%S"))
 
 def sched_save():
-    schedule.every(5).minutes.do(log_saver)
+    schedule.every(10).minutes.do(log_saver)
     while True:
         schedule.run_pending()
         time.sleep(1)

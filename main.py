@@ -7,6 +7,9 @@ import logging
 import jsonlines
 import pandas
 import datetime
+import schedule
+import time
+import threading
 from logging.handlers import TimedRotatingFileHandler
 
 token = os.getenv("GRAMMARZEKA_TOKEN")
@@ -61,19 +64,25 @@ def start_message(message):
 
 @bot.message_handler(commands=['help'])
 def help(message):
+    read_history()
+    if str(message.chat.id) not in history.keys():
+        bot.send_message(chat_id=message.chat.id, text=temp_text["forgor"])
+        return
     bot.send_message(message.chat.id, temp_text["help_message"], parse_mode='Markdown')
 
 @bot.message_handler(commands=['quiz'])
 def quiz(message):
+    get_message_for_logfile("Game started", message.chat.id)
+    read_history()
+    if str(message.chat.id) not in history.keys():
+        bot.send_message(chat_id=message.chat.id, text=temp_text["forgor"])
+        return
     start_quiz=types.InlineKeyboardMarkup()
     start_button=types.InlineKeyboardButton(text="Старт", callback_data="skip")
     start_quiz.add(start_button)
     bot.send_message(chat_id=message.chat.id, text=temp_text["quiz_start"], reply_markup=start_quiz)
 
 def question(call, exc=None):
-    # numquest = [0, 1, 2]
-    # if exc != None:
-    #     numquest.remove(exc)
     global num, numword
     read_history()
     history[str(call.message.chat.id)]["Questions now"] += 1
@@ -81,7 +90,7 @@ def question(call, exc=None):
     history[str(call.message.chat.id)]["Now"] = num
     write_history()
     markup=types.InlineKeyboardMarkup()
-    numword = sentences['using_word_id']
+    numword = int(sentences['using_word_id'][num])
     true_button = random.choice(range(len(sentences['complex_words'][num][numword]['distortions']) + 1))
     fake_button = 0
     for i in range(len(sentences['complex_words'][num][numword]['distortions']) + 1):
@@ -99,6 +108,9 @@ def question(call, exc=None):
 def callback_inline(call):
     global num, numword, history
     read_history()
+    if str(call.message.chat.id) not in history.keys():
+        bot.send_message(chat_id=call.message.chat.id, text=temp_text["forgor_q"])
+        return
     history[str(call.message.chat.id)]["Last seen"] = datetime.datetime.today().strftime("%d.%m.%Y %H:%M:%S")
     write_history()
     if num == None:
@@ -113,16 +125,10 @@ def callback_inline(call):
                 read_history()
                 history[str(call.message.chat.id)]["Successful"].append(num)
                 write_history()
-                read_stats()
-                stats[str(num)][0] += 1
-                write_stats()
-                get_message_for_logfile("Question passed")
+                get_message_for_logfile("Question passed", call.message.chat.id)
                 bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="❗️" + sentences['sentence'][num].replace(sentences['complex_words'][num][numword]['word'],  sentences['complex_words'][num][numword]['word'].upper()) + "\n\n✅Правильно!✅\n\nПродолжим?", reply_markup=next_q)
             else:
-                read_stats()
-                stats[str(num)][1] += 1
-                write_stats()
-                get_message_for_logfile("Question failed")
+                get_message_for_logfile("Question failed", call.message.chat.id)
                 bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="❗️" + sentences['sentence'][num].replace(sentences['complex_words'][num][numword]['word'],  sentences['complex_words'][num][numword]['word'].upper()) + "\n\n❌Неверно.❌\nПравильный ответ: " + sentences['complex_words'][num][numword]['word'] + ".\n\nПродолжим?", reply_markup=next_q)
         elif call.data[:4] == "skip":
             read_history()
@@ -134,6 +140,7 @@ def callback_inline(call):
             else:
                 question(call)
         elif call.data == "end":
+            get_message_for_logfile("Game ended", call.message.chat.id)
             read_history()
             history[str(call.message.chat.id)]["Now"] = None
             history[str(call.message.chat.id)]["Games"] += 1
@@ -150,14 +157,12 @@ def callback_inline(call):
             history[str(call.message.chat.id)]["Easy"].append(num)
             write_history()
             bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=call.message.text)
-            get_message_for_logfile("Easy question", num + 1)
+            get_message_for_logfile("Easy question", call.message.chat.id)
             question(call, num)
 
 def get_message_for_logfile(message, user_id=""):
-    if user_id != None:
-        logger.info(message + "\t" + str(user_id))
-    elif num != None:
-        logger.info(message + "\t" + str(num))
+    if num != None:
+        logger.info(message + "\t" + str(num) + "\t" + str(user_id))
     else:
         logger.info(message)
 
@@ -172,22 +177,17 @@ def write_history():
     with open('history.json', 'w') as f:
         json.dump(history, f)
 
-def read_stats():
-    global stats
-    with open('stats.json') as f:
-        stats = json.load(f)
+def log_saver():
+    get_message_for_logfile("Logfile sended")
+    with open("log.log", "rb") as f:
+        bot.send_document(chat_id=os.getenv("TG_ID"), document=f, caption="Log "+datetime.datetime.today().strftime("%d.%m.%Y %H:%M:%S"))
 
-def write_stats():
-    global stats
-    with open('stats.json', 'w') as f:
-        json.dump(stats, f)
+def sched_save():
+    schedule.every(5).minutes.do(log_saver)
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
 
-# Passed and failed counts
-stats = {i: (0, 0) for i in range(sentences.shape[0])}
-try:
-    read_stats()
-except:
-    write_stats()
 
 # Users history
 history = {}
@@ -197,5 +197,7 @@ except:
     write_history()
 
 get_message_for_logfile("Bot started")
+
+threading.Thread(target=sched_save).start()
 
 bot.infinity_polling()

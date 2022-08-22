@@ -139,3 +139,5 @@ log.*
 
 stats.json
 history.json
+
+keys/

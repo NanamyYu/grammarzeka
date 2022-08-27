@@ -1,18 +1,19 @@
 from collections import defaultdict
+from typing import Set
 
 
 # Функция сложности слова
 exec(open('scripts/word_difficulty.py').read())
 
+def transform_word(word: str) -> tuple:
+    delete_symbols = set(string.punctuation) - set('-') | set('«»…')
+    word = ''.join([w for w in word.replace(' ', '') if w not in delete_symbols])
+    word = re.sub('[a-zA-Z]|\d', '', word)
+    is_capitalized = word[0].isupper() if word else False
+    return word.lower(), is_capitalized
+
 
 # Датасеты
-fullname = save_zip_csv(url='https://github.com/Koziev/NLP_Datasets/raw/master/Stress/all_accents.zip',
-                        dirname='datasets/stress',
-                        new_filename='all_accents.tsv')
-stress_df = pd.read_csv(fullname, sep='\t', names=['Lemma', 'stress'])
-stress_df = stress_df.drop_duplicates(subset=['Lemma'])
-stress_df = stress_df.set_index('Lemma')
-
 letters_dict = dict()
 letters = set('абвгдежзийклмнопрстуфхцчшщъыьэюя')
 for word in morph_df.index:
@@ -24,50 +25,65 @@ for word in morph_df.index:
                 letters_dict[c] = defaultdict(int)
             letters_dict[c][next_c] += 1
 letter_df = pd.DataFrame.from_dict(letters_dict, orient='index').fillna(0)
-letter_df = letter_df.div(letter_df.max(axis=1), axis=0)
+letter_df = letter_df.div(letter_df.sum(axis=1), axis=0)
+
+fullname = save_zip_csv(url='https://github.com/Koziev/NLP_Datasets/raw/master/Stress/all_accents.zip',
+                        dirname='datasets/stress',
+                        new_filename='all_accents.tsv')
+stress_df = pd.read_csv(fullname, sep='\t', names=['Lemma', 'stress'])
+stress_df = stress_df.drop_duplicates(subset=['Lemma'])
+stress_df = stress_df.set_index('Lemma')
 
 
 # Вспомогательные функции
-def get_morphs_list(lemma: str) -> List[str]:
-    if lemma not in morph_df.index:
-        return []
-    return list(morph_df.loc[lemma]['analysis'].split('/'))
-
 def get_word_probability(word: str) -> int:
-    probability = 0
-    amount = 0
+    probability = 1
     for i in range(len(word) - 1):
         c = word[i]
         next_c = word[i + 1]
         if c in letters and next_c in letters:
-            probability += letter_df.loc[c][next_c]
-            amount += 1
-    return probability / amount if amount else 0
+            probability *= letter_df.loc[c][next_c]
+    return probability
 
 def get_n_best_words(words, max_amount: int=1) -> List[str]:
     if max_amount < len(words):
         return sorted(list(words), key=lambda word: get_word_probability(word), reverse=True)[:max_amount]
     return list(words)
 
+def get_morphs_list(lemma: str) -> List[str]:
+    if lemma not in morph_df.index:
+        return []
+    return list(morph_df.loc[lemma]['analysis'].split('/'))
+
 stress_vowels_dict = {'о':'а', 'а':'о', 'е':'и', 'и':'е', 'я':'е'}
 
-def stress_vowels_distortion(word: str, stress_word: str, morphs_list: List[str]=[], max_amount: int=1) -> List[str]:  
+def stress_vowels_distortion(word: str, stress_word: str, morphs_list: List[str]=[]) -> Set[str]:  
     def do_distortion(word_: str, stress_word: str) -> None:
+        check_word = ''
         if 0 <= stress_word.find('^') < len(stress_word) - 2:
             i = stress_word.find('^')
-            stress_word = stress_word[:i] + stress_word[i + 1].upper() + stress_word[i + 2:]
+            check_word = stress_word[:i] + stress_word[i + 1].upper() + stress_word[i + 2:]
         else:
-            return []
-        for i in range(1, len(word_) - 3):
-            if i < len(stress_word) and stress_word[i] in stress_vowels_dict and stress_word[i] == word_[i]:
+            return set()
+        
+        i = j = 2
+        while (i < len(word) - 3) and (j < len(check_word) - 3):
+            if word[i] != check_word[j].lower():
+                if word[i] == check_word[j + 1].lower():
+                    j += 1
+                elif word[i + 1] == check_word[j].lower():
+                    i += 1
+            if check_word[j] in stress_vowels_dict and word[i] == check_word[j]:
                 distortion = word_[:i] + stress_vowels_dict[word_[i]] + word_[i + 1:]
                 if distortion not in distortions and distortion != word:
                     distortions.add(distortion)
                     do_distortion(distortion, stress_word)
+            i += 1
+            j += 1
         
     distortions = set()
     do_distortion(word, stress_word)
-    return get_n_best_words(distortions, max_amount)
+    return distortions
 
 deaf_consonants = set('пфктшсхцчщ')
 consonants_pairs = {
@@ -78,7 +94,7 @@ consonants_pairs = {
     'з':'с', 
 }
 
-def consonants_distortion(word: str, morphs_list: List[str]=[], max_amount: int=1) -> List[str]:  
+def consonants_distortion(word: str, morphs_list: List[str]=[]) -> Set[str]:  
     def do_distortion(word_: str) -> None:
         for i in range(len(word_)):
             distortion = None
@@ -92,7 +108,7 @@ def consonants_distortion(word: str, morphs_list: List[str]=[], max_amount: int=
         
     distortions = set()
     do_distortion(word)
-    return get_n_best_words(distortions, max_amount)
+    return distortions
 
 root_pairs = {'раст':'рост', 'ращ':'рощ', 'рос':'рас',
                'лаг':'лог', 'лож':'лаж',
@@ -115,7 +131,7 @@ root_pairs = {'раст':'рост', 'ращ':'рощ', 'рос':'рас',
                'чет':'чит', 'чит':'чет',
                'кас':'кос', 'кос':'кас'}
     
-def roots_distortion(word: str, morphs_list: List[str]=[], max_amount: int=1) -> List[str]:
+def roots_distortion(word: str, morphs_list: List[str]=[]) -> Set[str]:
     def do_distortion(word_: str) -> None:
         index = 0
         for morph in morphs_list:
@@ -128,7 +144,7 @@ def roots_distortion(word: str, morphs_list: List[str]=[], max_amount: int=1) ->
 
     distortions = set()
     do_distortion(word)
-    return get_n_best_words(distortions, max_amount)
+    return distortions
 
 prefix_pairs = {'пре':'при', 'при':'пре',
                 'без':'бес', 'бес':'без',
@@ -140,7 +156,7 @@ prefix_pairs = {'пре':'при', 'при':'пре',
                 'роз':'рос', 'рос':'роз',
                 'чрез':'чрес', 'чрес':'чрез'}
 
-def prefixs_distortion(word: str, morphs_list: List[str]=[], max_amount: int=1) -> List[str]:
+def prefixs_distortion(word: str, morphs_list: List[str]=[]) -> Set[str]:
     def do_distortion(word_: str) -> None:
         index = 0
         for morph in morphs_list:
@@ -153,33 +169,38 @@ def prefixs_distortion(word: str, morphs_list: List[str]=[], max_amount: int=1) 
             
     distortions = set()
     do_distortion(word)
-    return get_n_best_words(distortions, max_amount)
+    return distortions
 
 vowels_after_prefixs_pairs = {'и':'ы', 'ы':'и'}
 
-def vowels_after_prefixs_distortion(word: str, morphs_list: List[str]=[], max_amount: int=1) -> List[str]:
-    if 0 < max_amount and morphs_list:
+all_prefixs = {'в', 'во', 'взо', 'вне', 'внутри', 'возо', 'вы', 'до', 'еже', 'за', 'зако', 'изо', 'испод', 'к', 'кое', 'ку',
+               'меж', 'междо', 'между', 'на', 'над', 'надо', 'наи', 'не', 'недо', 'ни', 'низо', 'о', 'об', 'обо', 'около',
+               'от', 'ото', 'па', 'пере', 'по', 'под', 'подо', 'поза', 'после', 'пра', 'пред', 'преди', 'предо', 'про',
+               'противо', 'разо', 'с', 'со', 'сверх', 'среди', 'су', 'тре', 'у', 'без', 'бес', 'вз', 'вс', 'воз', 'вос', 
+               'из', 'ис', 'низ', 'нис', 'обез', 'обес', 'раз', 'рас', 'роз', 'рос', 'через', 'черес', 'чрез', 'чрес'}
+
+def vowels_after_prefixs_distortion(word: str, morphs_list: List[str]=[]) -> Set[str]:
+    if morphs_list:
         morph = morphs_list[0].replace('\'', '')
-        if len(morph) < len(word) and word[len(morph)] in vowels_after_prefixs_pairs:
+        if len(morph) < len(word) and morph in all_prefixs  and word[len(morph)] in vowels_after_prefixs_pairs:
             distortion = word[:len(morph)] +\
                         vowels_after_prefixs_pairs[word[len(morph)]] +\
                         word[len(morph) + 1:]
             if distortion != word:
-                return [distortion]
-    return []
+                return {distortion}
+    return set()
 
 postfix_pairs = {'тся':'ться', 'ться':'тся'}
 
-def postfixs_distortion(word: str, morphs_list: List[str]=[], max_amount: int=1) -> List[str]:
-    if 0 < max_amount:
-        for postfix in postfix_pairs:
-            if word[-len(postfix):] == postfix:
-                return [word[:-len(postfix)] + postfix_pairs[postfix]]
-    return []
+def postfixs_distortion(word: str, morphs_list: List[str]=[]) -> Set[str]:
+    for postfix in postfix_pairs:
+        if word[-len(postfix):] == postfix:
+            return {word[:-len(postfix)] + postfix_pairs[postfix]}
+    return set()
 
 vowels = set('аяоёуюыиэе')
 
-def two_in_row_distortion(word: str, morphs_list: List[str]=[], max_amount: int=1) -> List[str]:
+def two_in_row_distortion(word: str, morphs_list: List[str]=[]) -> Set[str]:
     def do_distortion(word_: str) -> None:
         for i in range(len(word_)):
             if i > 0 and word_[i - 1] == word_[i] and word_[i] not in vowels:
@@ -190,11 +211,11 @@ def two_in_row_distortion(word: str, morphs_list: List[str]=[], max_amount: int=
             
     distortions = set()
     do_distortion(word)
-    return get_n_best_words(distortions, max_amount)
+    return distortions
 
 single_suffixs = set(['ан', 'ян', 'ын', 'ин'])
 
-def duplicate_distortion(word: str, morphs_list: List[str], max_amount: int=1) -> List[str]:
+def duplicate_distortion(word: str, morphs_list: List[str]) -> Set[str]:
     def do_distortion(word_: str) -> None:
         index = 0
         for morph in morphs_list:
@@ -209,7 +230,7 @@ def duplicate_distortion(word: str, morphs_list: List[str], max_amount: int=1) -
             
     distortions = set()
     do_distortion(word)
-    return get_n_best_words(distortions, max_amount)
+    return distortions
 
 silent_consonants_dict = {'стн':'сн',
                           'стл':'сл',
@@ -223,7 +244,7 @@ silent_consonants_dict = {'стн':'сн',
                           'лнц':'нц',
                           'вств':'ств'}
 
-def silent_consonants_distortion(word: str, morphs_list: List[str]=[], max_amount: int=1) -> List[str]:
+def silent_consonants_distortion(word: str, morphs_list: List[str]=[]) -> Set[str]:
     def do_distortion(word_: str) -> None:
         for key, value in silent_consonants_dict.items():
             distortion = word_.replace(key, value, 1)
@@ -239,23 +260,21 @@ def silent_consonants_distortion(word: str, morphs_list: List[str]=[], max_amoun
     
     distortions = set()
     do_distortion(word)
-    return get_n_best_words(distortions, max_amount)
+    return distortions
 
-def hard_sign_distortion(word: str, morphs_list: List[str]=[], max_amount: int=1) -> List[str]:
-    if 0 < max_amount and 'ъ' in set(word):
-        return [word.replace('ъ', 'ь', 1)]
-    return []
+def hard_sign_distortion(word: str, morphs_list: List[str]=[]) -> Set[str]:
+    if 'ъ' in set(word):
+        return {word.replace('ъ', 'ь', 1)}
+    return set()
 
-def hyphen_distortion(word: str, morphs_list: List[str]=[], max_amount: int=1) -> List[str]:
-    if 1 < max_amount and '-' in set(word):
-        return [word.replace('-', ' '), word.replace('-', '')]
-    if 0 < max_amount and '-' in set(word):
-        return [word.replace('-', '')]
-    return []
+def hyphen_distortion(word: str, morphs_list: List[str]=[]) -> Set[str]:
+    if '-' in set(word):
+        return {word.replace('-', ' '), word.replace('-', '')}
+    return set()
 
 
 # Основная функция сложности слова
-def create_distortions(word: str, lemma: str, max_amount: int=6) -> List[str]:
+def create_distortions(word: str, lemma: str, min_amount: int=3, max_amount: int=6) -> List[str]:
     morphs_list=get_morphs_list(lemma)    
     distortions = set([word])
     
@@ -263,12 +282,15 @@ def create_distortions(word: str, lemma: str, max_amount: int=6) -> List[str]:
         result = set()
         amount = (max_amount // len(distortions)) - 1
         for distortion in distortions:
+            created_distortions = set()
             if stress:
                 if word in stress_df.index:
                     stress_word = stress_df.loc[word]['stress']
-                    result.update(func(distortion, stress_word, morphs_list, amount))
+                    created_distortions = func(distortion, stress_word, morphs_list)
             else:
-                result.update(func(distortion, morphs_list, amount))
+                created_distortions = func(distortion, morphs_list)
+            new_distortions = created_distortions - distortions - result
+            result.update(get_n_best_words(new_distortions, max_amount=amount))
         distortions.update(result)     
 
     do_function(roots_distortion)
@@ -277,14 +299,17 @@ def create_distortions(word: str, lemma: str, max_amount: int=6) -> List[str]:
     do_function(postfixs_distortion)
     do_function(two_in_row_distortion)
     do_function(duplicate_distortion)
+    do_function(consonants_distortion)
     do_function(silent_consonants_distortion)
     do_function(hard_sign_distortion)
     do_function(hyphen_distortion)
-    do_function(consonants_distortion)
     do_function(stress_vowels_distortion, True)
     
+    if len(distortions) < min_amount:
+        return []
     distortions.remove(word)
     return list(distortions)
+
 
 # Функции анализа искажений .txt
 def countplot_distortions_df(distortions_df: pd.DataFrame) -> None:

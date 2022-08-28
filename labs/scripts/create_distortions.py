@@ -173,16 +173,19 @@ def prefixs_distortion(word: str, morphs_list: List[str]=[]) -> Set[str]:
 
 vowels_after_prefixs_pairs = {'и':'ы', 'ы':'и'}
 
-all_prefixs = {'в', 'во', 'взо', 'вне', 'внутри', 'возо', 'вы', 'до', 'еже', 'за', 'зако', 'изо', 'испод', 'к', 'кое', 'ку',
-               'меж', 'междо', 'между', 'на', 'над', 'надо', 'наи', 'не', 'недо', 'ни', 'низо', 'о', 'об', 'обо', 'около',
-               'от', 'ото', 'па', 'пере', 'по', 'под', 'подо', 'поза', 'после', 'пра', 'пред', 'преди', 'предо', 'про',
-               'противо', 'разо', 'с', 'со', 'сверх', 'среди', 'су', 'тре', 'у', 'без', 'бес', 'вз', 'вс', 'воз', 'вос', 
-               'из', 'ис', 'низ', 'нис', 'обез', 'обес', 'раз', 'рас', 'роз', 'рос', 'через', 'черес', 'чрез', 'чрес'}
+all_prefixs = {'без', 'бес', 'в', 'во', 'вз', 'взо', 'вс', 'вне', 'внутри', 'воз', 'возо', 'вос', 'все', 'вы', 'до', 'за',
+               'из', 'изо', 'ис', 'испод', 'к', 'кое', 'кой', 'меж', 'междо', 'между', 'на', 'над', 'надо', 'наи', 'не',
+               'небез', 'небес', 'недо', 'ни', 'низ', 'низо', 'нис', 'о', 'об', 'обо', 'обез', 'обес', 'около', 'от', 'ото', 
+               'па', 'пере', 'по', 'под', 'подo', 'поза', 'после', 'пра', 'пре', 'пред', 'предо', 'преди', 'при', 'про', 
+               'противо', 'раз', 'разо', 'рас', 'роз', 'рос', 'с', 'со', 'сверх', 'среди', 'су', 'сыз', 'тре', 'у', 'чрез', 
+               'через', 'черес', 'а', 'анти', 'архи', 'би', 'вице', 'гипер', 'де', 'дез', 'дис', 'им', 'интер', 'ир', 'квази',
+               'контр', 'макро', 'кросс', 'мега', 'микро', 'мини', 'обер', 'пан', 'пост', 'пре', 'прото', 'псевдо', 'ре', 
+               'суб', 'супер', 'сюр', 'транс', 'ультра', 'уни', 'экзо', 'экс', 'экстра'}
 
 def vowels_after_prefixs_distortion(word: str, morphs_list: List[str]=[]) -> Set[str]:
     if morphs_list:
         morph = morphs_list[0].replace('\'', '')
-        if len(morph) < len(word) and morph in all_prefixs  and word[len(morph)] in vowels_after_prefixs_pairs:
+        if len(morph) < len(word) and morph in all_prefixs and word[len(morph)] in vowels_after_prefixs_pairs:
             distortion = word[:len(morph)] +\
                         vowels_after_prefixs_pairs[word[len(morph)]] +\
                         word[len(morph) + 1:]
@@ -297,11 +300,11 @@ def create_distortions(word: str, lemma: str, min_amount: int=3, max_amount: int
     do_function(prefixs_distortion)
     do_function(vowels_after_prefixs_distortion)
     do_function(postfixs_distortion)
+    do_function(consonants_distortion)
+    do_function(hard_sign_distortion)
     do_function(two_in_row_distortion)
     do_function(duplicate_distortion)
-    do_function(consonants_distortion)
     do_function(silent_consonants_distortion)
-    do_function(hard_sign_distortion)
     do_function(hyphen_distortion)
     do_function(stress_vowels_distortion, True)
     
@@ -316,6 +319,8 @@ def countplot_distortions_df(distortions_df: pd.DataFrame) -> None:
     print('Всего слов: {}'.format(len(distortions_df)))
     print('Слов без искажений: {}'.format(len(distortions_df[distortions_df['distortions_amount'] == 0])))
     print('Слов с искажениями: {}'.format(len(distortions_df[distortions_df['distortions_amount'] != 0])))
+    
+    plt.rc('font', size=13)
     
     fig, ax = plt.subplots(figsize=(8, 4))
     

@@ -302,6 +302,8 @@ def word_difficulty(word: str) -> dict:
 
 # Функции анализа .txt
 def distplot_text_df(text_dfs: List[pd.DataFrame], labels: List[str]=[], FROM: int=0, TO: int=1) -> None:
+    plt.rc('font', size=13)
+    
     fig, ax = plt.subplots(figsize=(8, 4))
     for text_df in text_dfs:
         sns.distplot(x=text_df['difficulty'], label='1')

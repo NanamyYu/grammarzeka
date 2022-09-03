@@ -180,7 +180,7 @@ def log_saver():
         bot.send_document(chat_id=os.getenv("TG_ID"), document=f, caption="Log "+datetime.datetime.today().strftime("%d.%m.%Y %H:%M:%S"))
 
 def sched_save():
-    schedule.every(3599).seconds.do(log_saver)
+    schedule.every(3595).seconds.do(log_saver)
     while True:
         schedule.run_pending()
         time.sleep(1)

@@ -59,7 +59,8 @@ def start_message(message):
         history[str(message.chat.id)]["Questions now"] = 0
         history[str(message.chat.id)]["QCount"] = 0
         write_history()
-    bot.send_message(message.chat.id, temp_text["hello_message"], parse_mode='Markdown')
+    help(message)
+    # bot.send_message(message.chat.id, temp_text["hello_message"], parse_mode='Markdown')
 
 @bot.message_handler(commands=['help'])
 def help(message):
@@ -99,7 +100,7 @@ def question(call):
             markup.add(types.InlineKeyboardButton(text=fake_word, callback_data="F" + fake_word))
             fake_button += 1
     skip_button=types.InlineKeyboardButton(text="Пропустить", callback_data="skip")
-    easy_button=types.InlineKeyboardButton(text="Слишком простой вопрос", callback_data="easy")
+    easy_button=types.InlineKeyboardButton(text="Слишком просто", callback_data="easy")
     markup.add(skip_button, easy_button, end_button)
     bot.send_message(chat_id=call.message.chat.id, text="❓" + sentences['sentence'][history[str(call.message.chat.id)]["Now"]].replace(sentences['complex_words'][history[str(call.message.chat.id)]["Now"]][numword]['word'],  "\_\_\_\_"), reply_markup=markup, parse_mode='Markdown')
 

@@ -58,6 +58,7 @@ def start_message(message):
         history[str(message.chat.id)]["QperGame"] = 0
         history[str(message.chat.id)]["Questions now"] = 0
         history[str(message.chat.id)]["QCount"] = 0
+        history[str(message.chat.id)]["Difficulty"] = "middle"
         write_history()
     help(message)
     # bot.send_message(message.chat.id, temp_text["hello_message"], parse_mode='Markdown')
@@ -69,6 +70,13 @@ def help(message):
         bot.send_message(chat_id=message.chat.id, text=temp_text["forgor"])
         return
     bot.send_message(message.chat.id, temp_text["help_message"], parse_mode='Markdown')
+
+@bot.message_handler(commands=['settings'])
+def settings(message):
+    markup=types.InlineKeyboardMarkup()
+    dif_button=types.InlineKeyboardButton(text="Сложность", callback_data="dif")
+    markup.add(dif_button)
+    bot.send_message(chat_id=message.chat.id, text="Выберите пункт:", reply_markup=markup)
 
 @bot.message_handler(commands=['quiz'])
 def quiz(message):
@@ -157,6 +165,9 @@ def callback_inline(call):
             bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=call.message.text)
             get_message_for_logfile("Easy question", history[str(call.message.chat.id)]["Now"], call.message.chat.id)
             question(call)
+        elif call.data == "dif":
+            read_history()
+            bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="Текущая сложность:" + history[str(call.message.chat.id)]["Difficulty"])
 
 def get_message_for_logfile(message, num=None, user_id="", needqnum=True):
     if num != None and needqnum:

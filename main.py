@@ -31,6 +31,9 @@ logger.addHandler(handler)
 with jsonlines.open('labs/jsonl/alisa_selezneva.jsonl') as f:
     sentences = pandas.DataFrame(f)
 
+with jsonlines.open('paronyms/paronyms_alisa.jsonl') as f:
+    paronyms = pandas.DataFrame(f)
+
 # Default buttons
 end_button=types.InlineKeyboardButton(text="Закончить", callback_data="end")
 
@@ -90,6 +93,18 @@ def quiz(message):
     start_quiz.add(start_button)
     bot.send_message(chat_id=message.chat.id, text=temp_text["quiz_start"], reply_markup=start_quiz)
 
+@bot.message_handler(commands=['parquiz'])
+def parquiz(message):
+    get_message_for_logfile("Paronyms game started", message.chat.id, needqnum=False)
+    read_history()
+    if str(message.chat.id) not in history.keys():
+        bot.send_message(chat_id=message.chat.id, text=temp_text["forgor"])
+        return
+    start_quiz=types.InlineKeyboardMarkup()
+    start_button=types.InlineKeyboardButton(text="Старт", callback_data="skipp")
+    start_quiz.add(start_button)
+    bot.send_message(chat_id=message.chat.id, text=temp_text["quiz_start"], reply_markup=start_quiz)
+
 def question(call):
     global numword
     read_history()
@@ -111,6 +126,35 @@ def question(call):
     easy_button=types.InlineKeyboardButton(text="Слишком просто", callback_data="easy")
     markup.add(skip_button, easy_button, end_button)
     bot.send_message(chat_id=call.message.chat.id, text="❓" + sentences['sentence'][history[str(call.message.chat.id)]["Now"]].replace(sentences['complex_words'][history[str(call.message.chat.id)]["Now"]][numword]['word'],  "\_\_\_\_"), reply_markup=markup, parse_mode='Markdown')
+
+
+def parquestion(call):
+    # read_history()
+    # history[str(call.message.chat.id)]["Questions now"] += 1
+    # history[str(call.message.chat.id)]["Now"] = random.choice(list(all_questions - set(history[str(call.message.chat.id)]["Successful"]) - set(history[str(call.message.chat.id)]["Easy"])))
+    # write_history()
+    markup=types.InlineKeyboardMarkup()
+    # numword = int(sentences['using_word_id'][history[str(call.message.chat.id)]["Now"]])
+    # true_button = random.choice(range(len(sentences['complex_words'][history[str(call.message.chat.id)]["Now"]][numword]['distortions']) + 1))
+    # fake_button = 0
+    # for i in range(len(sentences['complex_words'][history[str(call.message.chat.id)]["Now"]][numword]['distortions']) + 1):
+    #     if i == true_button:
+    #         markup.add(types.InlineKeyboardButton(text=sentences['complex_words'][history[str(call.message.chat.id)]["Now"]][numword]['word'], callback_data="T"))
+    #     else:
+    #         fake_word = sentences['complex_words'][history[str(call.message.chat.id)]["Now"]][numword]['distortions'][fake_button]
+    #         markup.add(types.InlineKeyboardButton(text=fake_word, callback_data="F" + fake_word))
+    #         fake_button += 1
+    # skip_button=types.InlineKeyboardButton(text="Пропустить", callback_data="skip")
+    # easy_button=types.InlineKeyboardButton(text="Слишком просто", callback_data="easy")
+    # markup.add(skip_button, easy_button, end_button)
+    # bot.send_message(chat_id=call.message.chat.id, text="❓" + sentences['sentence'][history[str(call.message.chat.id)]["Now"]].replace(sentences['complex_words'][history[str(call.message.chat.id)]["Now"]][numword]['word'],  "\_\_\_\_"), reply_markup=markup, parse_mode='Markdown')
+    numword = random.choice(range(paronyms.shape[0] - 1))
+    numpar = random.choice(range(len(paronyms.iloc[numword]['paronyms'])))
+    text = paronyms['sentence'][numword].replace(paronyms['paronyms'][numword][numpar]['word'],  "\_\_\_\_")
+    for i in range(len(paronyms['paronyms'][numword][numpar]['paronyms'])):
+        markup.add(types.InlineKeyboardButton(text=paronyms['paronyms'][numword][numpar]['paronyms'][i], callback_data='pF'))
+    markup.add(types.InlineKeyboardButton(text=paronyms['paronyms'][numword][numpar]['word'], callback_data='pT'))
+    bot.send_message(chat_id=call.message.chat.id, text=text, reply_markup=markup, parse_mode='Markdown')
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call):
@@ -136,15 +180,26 @@ def callback_inline(call):
             else:
                 get_message_for_logfile("Question failed", history[str(call.message.chat.id)]["Now"], call.message.chat.id)
                 bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="❗️" + sentences['sentence'][history[str(call.message.chat.id)]["Now"]].replace(sentences['complex_words'][history[str(call.message.chat.id)]["Now"]][numword]['word'],  sentences['complex_words'][history[str(call.message.chat.id)]["Now"]][numword]['word'].upper()) + "\n\n❌Неверно.❌\nПравильный ответ: " + sentences['complex_words'][history[str(call.message.chat.id)]["Now"]][numword]['word'] + ".\nТы выбрал: " + call.data[1:] + ".\n\nПродолжим?", reply_markup=next_q)
+        elif call.data == "pT" or call.data == "pF":
+            markup=types.InlineKeyboardMarkup()
+            next_button=types.InlineKeyboardButton(text="Следующий вопрос", callback_data="skipp")
+            markup.add(next_button)
+            if call.data == "pT":
+                bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="Правильно! Продолжим?", reply_markup=markup)
+            else:
+                bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="Неправильно. Продолжим?", reply_markup=markup)
         elif call.data == "skip":
             read_history()
             history[str(call.message.chat.id)]["Now"] = None
             write_history()
             bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=call.message.text)
-            if len(call.data) > 4:
-                question(call)
-            else:
-                question(call)
+            question(call)
+        elif call.data == "skipp":
+            # read_history()
+            # history[str(call.message.chat.id)]["Now"] = None
+            # write_history()
+            bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=call.message.text)
+            parquestion(call)
         elif call.data == "end":
             get_message_for_logfile("Game ended", call.message.chat.id, needqnum=False)
             read_history()

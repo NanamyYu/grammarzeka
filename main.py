@@ -93,7 +93,7 @@ def stats(message):
                      "\n*Правильно:* " + str(history[str(message.chat.id)]["Right"]) +
                      "\n*Неправильно:* " + str(history[str(message.chat.id)]["QCount"] - history[str(message.chat.id)]["Right"]) +
                      "\n*Процент правильных вопросов:* " + str(round(history[str(message.chat.id)]["Right"] / (history[str(message.chat.id)]["QCount"]/100), 1)) + "%" +
-                     "\n*В среднем вопросов за игру:* " + str(history[str(message.chat.id)]["QperGame"]) +
+                     "\n*В среднем вопросов за игру:* " + str(round(history[str(message.chat.id)]["QperGame"], 2)) +
                      "\n*В текущей игре пройдено вопросов:* " + str(history[str(message.chat.id)]["Questions now"]), parse_mode='Markdown')
 
 
@@ -167,7 +167,7 @@ def callback_inline(call):
             else:
                 get_message_for_logfile("Question failed", history[str(call.message.chat.id)]["Now"], call.message.chat.id, history[str(call.message.chat.id)]["Type"])
                 bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="❗️" + sentences['sentence'][history[str(call.message.chat.id)]["Now"]].replace(sentences['complex_words'][history[str(call.message.chat.id)]["Now"]][numword]['word'],  sentences['complex_words'][history[str(call.message.chat.id)]["Now"]][numword]['word'].upper()) + "\n\n❌Неверно.❌\nПравильный ответ: " + sentences['complex_words'][history[str(call.message.chat.id)]["Now"]][numword]['word'] + ".\nТы выбрал: " + call.data[1:] + ".\n\nПродолжим?", reply_markup=next_q)
-        elif call.data == "skip" or call.data == "paronyms" or call.data == "orpho":
+        elif call.data == "skip" or call.data == "paronyms" or call.data == "orphography":
             read_history()
             history[str(call.message.chat.id)]["Now"] = None
             if call.data != "skip":
@@ -189,7 +189,7 @@ def callback_inline(call):
             history[str(call.message.chat.id)]["Questions now"] = 0
             write_history()
             bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=call.message.text)
-            bot.send_message(chat_id=call.message.chat.id, text=temp_text["quiz_end"])
+            bot.send_message(chat_id=call.message.chat.id, text=temp_text["quiz_end"], parse_mode='HTML')
         elif call.data == "easy":
             read_history()
             history[str(call.message.chat.id)]["Easy"].append(history[str(call.message.chat.id)]["Now"])

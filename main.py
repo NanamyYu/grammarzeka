@@ -31,7 +31,6 @@ logger.addHandler(handler)
 with jsonlines.open('labs/jsonl/alisa_selezneva.jsonl') as f:
     orphography = pandas.DataFrame(f)
 
-# Загрузка сообщений
 with jsonlines.open('paronyms/paronyms_alisa_new.jsonl') as f:
     paronyms = pandas.DataFrame(f)
 
@@ -100,6 +99,24 @@ def stats(message):
                      "\n*В среднем вопросов за игру:* " + str(round(history[str(message.chat.id)]["QperGame"], 2)) +
                      "\n*В текущей игре пройдено вопросов:* " + str(history[str(message.chat.id)]["Questions now"]), parse_mode='Markdown')
 
+@bot.message_handler(commands=['stats'])
+def stats(message):
+    read_history()
+    if str(message.chat.id) not in history.keys():
+        bot.send_message(chat_id=message.chat.id, text=temp_text["forgor"])
+        return
+    if history[str(message.chat.id)]["Games"] == 0:
+        bot.send_message(chat_id=message.chat.id, text=temp_text["go_play"])
+        return
+    bot.send_message(message.chat.id, 
+                     "*Сыграно игр:* " + str(history[str(message.chat.id)]["Games"]) +
+                     "\n*Сыграно вопросов:* " + str(history[str(message.chat.id)]["QCount"]) +
+                     "\n*Правильно:* " + str(history[str(message.chat.id)]["Right"]) +
+                     "\n*Неправильно:* " + str(history[str(message.chat.id)]["QCount"] - history[str(message.chat.id)]["Right"]) +
+                     "\n*Процент правильных вопросов:* " + str(round(history[str(message.chat.id)]["Right"] / (history[str(message.chat.id)]["QCount"]/100), 1)) + "%" +
+                     "\n*В среднем вопросов за игру:* " + str(round(history[str(message.chat.id)]["QperGame"], 2)) +
+                     "\n*В текущей игре пройдено вопросов:* " + str(history[str(message.chat.id)]["Questions now"]), parse_mode='Markdown')
+
 
 @bot.message_handler(commands=['quiz'])
 def quiz(message):
@@ -108,6 +125,8 @@ def quiz(message):
     if str(message.chat.id) not in history.keys():
         bot.send_message(chat_id=message.chat.id, text=temp_text["forgor"])
         return
+    history[str(message.chat.id)]["Games"] += 1
+    write_history()
     history[str(message.chat.id)]["Games"] += 1
     write_history()
     start_quiz=types.InlineKeyboardMarkup()
@@ -141,7 +160,10 @@ def question(call):
     easy_button=types.InlineKeyboardButton(text="Слишком просто", callback_data="easy")
     questext = sentences['sentence'][history[str(call.message.chat.id)]["Now"]].replace(sentences['complex_words'][history[str(call.message.chat.id)]["Now"]][numword]['word'],  "\_\_\_\_")
     questext = questext.replace(sentences['complex_words'][history[str(call.message.chat.id)]["Now"]][numword]['word'].capitalize(),  "\_\_\_\_")
+    questext = sentences['sentence'][history[str(call.message.chat.id)]["Now"]].replace(sentences['complex_words'][history[str(call.message.chat.id)]["Now"]][numword]['word'],  "\_\_\_\_")
+    questext = questext.replace(sentences['complex_words'][history[str(call.message.chat.id)]["Now"]][numword]['word'].capitalize(),  "\_\_\_\_")
     markup.add(skip_button, easy_button, end_button)
+    bot.send_message(chat_id=call.message.chat.id, text="❓" + questext, reply_markup=markup, parse_mode='Markdown')
     bot.send_message(chat_id=call.message.chat.id, text="❓" + questext, reply_markup=markup, parse_mode='Markdown')
 
 @bot.callback_query_handler(func=lambda call: True)
@@ -151,6 +173,7 @@ def callback_inline(call):
     if str(call.message.chat.id) not in history.keys():
         bot.send_message(chat_id=call.message.chat.id, text=temp_text["forgor_q"])
         return
+    sentences = eval(typeofQ[history[str(call.message.chat.id)]["Type"]])
     sentences = eval(typeofQ[history[str(call.message.chat.id)]["Type"]])
     history[str(call.message.chat.id)]["Last seen"] = datetime.datetime.today().strftime("%d.%m.%Y %H:%M:%S")
     write_history()
@@ -169,7 +192,12 @@ def callback_inline(call):
                 rightext = sentences['sentence'][history[str(call.message.chat.id)]["Now"]].replace(sentences['complex_words'][history[str(call.message.chat.id)]["Now"]][numword]['word'],  sentences['complex_words'][history[str(call.message.chat.id)]["Now"]][numword]['word'].upper())
                 rightext = rightext.replace(sentences['complex_words'][history[str(call.message.chat.id)]["Now"]][numword]['word'].capitalize(),  sentences['complex_words'][history[str(call.message.chat.id)]["Now"]][numword]['word'].upper())
                 bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="❗️" + rightext + "\n\n✅Правильно!✅\n\nПродолжим?", reply_markup=next_q)
+                get_message_for_logfile("Question passed", history[str(call.message.chat.id)]["Now"], call.message.chat.id, history[str(call.message.chat.id)]["Type"])
+                rightext = sentences['sentence'][history[str(call.message.chat.id)]["Now"]].replace(sentences['complex_words'][history[str(call.message.chat.id)]["Now"]][numword]['word'],  sentences['complex_words'][history[str(call.message.chat.id)]["Now"]][numword]['word'].upper())
+                rightext = rightext.replace(sentences['complex_words'][history[str(call.message.chat.id)]["Now"]][numword]['word'].capitalize(),  sentences['complex_words'][history[str(call.message.chat.id)]["Now"]][numword]['word'].upper())
+                bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="❗️" + rightext + "\n\n✅Правильно!✅\n\nПродолжим?", reply_markup=next_q)
             else:
+                get_message_for_logfile("Question failed", history[str(call.message.chat.id)]["Now"], call.message.chat.id, history[str(call.message.chat.id)]["Type"])
                 get_message_for_logfile("Question failed", history[str(call.message.chat.id)]["Now"], call.message.chat.id, history[str(call.message.chat.id)]["Type"])
                 bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="❗️" + sentences['sentence'][history[str(call.message.chat.id)]["Now"]].replace(sentences['complex_words'][history[str(call.message.chat.id)]["Now"]][numword]['word'],  sentences['complex_words'][history[str(call.message.chat.id)]["Now"]][numword]['word'].upper()) + "\n\n❌Неверно.❌\nПравильный ответ: " + sentences['complex_words'][history[str(call.message.chat.id)]["Now"]][numword]['word'] + ".\nТы выбрал: " + call.data[1:] + ".\n\nПродолжим?", reply_markup=next_q)
         elif call.data == "skip" or call.data in typeofQ:
@@ -177,8 +205,14 @@ def callback_inline(call):
             history[str(call.message.chat.id)]["Now"] = None
             if call.data != "skip":
                 history[str(call.message.chat.id)]["Type"] = typeofQ.index(call.data)
+            if call.data != "skip":
+                history[str(call.message.chat.id)]["Type"] = typeofQ.index(call.data)
             write_history()
             bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=call.message.text)
+            if len(call.data) > 4:
+                question(call)
+            else:
+                question(call)
             if len(call.data) > 4:
                 question(call)
             else:
@@ -191,9 +225,11 @@ def callback_inline(call):
             history[str(call.message.chat.id)]["QperGame"] += history[str(call.message.chat.id)]["Questions now"]
             history[str(call.message.chat.id)]["QperGame"] /= history[str(call.message.chat.id)]["Games"]
             # history[str(call.message.chat.id)]["QCount"] += history[str(call.message.chat.id)]["Questions now"]
+            # history[str(call.message.chat.id)]["QCount"] += history[str(call.message.chat.id)]["Questions now"]
             history[str(call.message.chat.id)]["Questions now"] = 0
             write_history()
             bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=call.message.text)
+            bot.send_message(chat_id=call.message.chat.id, text=temp_text["quiz_end"], parse_mode='HTML')
             bot.send_message(chat_id=call.message.chat.id, text=temp_text["quiz_end"], parse_mode='HTML')
         elif call.data == "easy":
             read_history()
@@ -201,11 +237,15 @@ def callback_inline(call):
             write_history()
             bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text=call.message.text)
             get_message_for_logfile("Easy question", history[str(call.message.chat.id)]["Now"], call.message.chat.id, history[str(call.message.chat.id)]["Type"])
+            get_message_for_logfile("Easy question", history[str(call.message.chat.id)]["Now"], call.message.chat.id, history[str(call.message.chat.id)]["Type"])
             question(call)
 
 
+
+def get_message_for_logfile(message, num=None, user_id="", qtype=1, needqnum=True):
 def get_message_for_logfile(message, num=None, user_id="", qtype=1, needqnum=True):
     if num != None and needqnum:
+        logger.info(message + "\t" + str(num) + "\t" + str(qtype) + "\t" + str(user_id))
         logger.info(message + "\t" + str(num) + "\t" + str(qtype) + "\t" + str(user_id))
     else:
         logger.info(message + "\t" + str(user_id))
